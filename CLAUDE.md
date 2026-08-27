@@ -28,7 +28,7 @@ server (`npm start`) is needed rather than opening the file.
 | `src/data/config.js` | every tunable: cycle length, hunger, hordes, sky, save keys |
 | `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph |
 | `src/data/resources.js` | tree, bush, berry bush, rock, ore, mine, quarry |
-| `src/data/structures.js` | everything placeable, with its own `build()` mesh factory |
+| `src/data/structures.js` | everything placeable, with its own `build()` mesh factory; tiers are `variantOf` the thing below them |
 | `src/data/materials.js` | the shared `MATS` / `GEO` pools, and `buildGeometry()` that fills them |
 | `src/core/grid.js` | 40×40 cells, cell size 2. Cell types: EMPTY/BLOCKER/STRUCT/TRAP |
 | `src/core/minheap.js` / `core/pathfinder.js` | one Dijkstra flow field per enemy class |
@@ -149,8 +149,10 @@ else repairs anything.
   performance question is settled (90 raiders hunting a running player: 0.19ms
   median frame). The design question is not: without something to defend,
   running away beats holding a wall.
-- Deployables and stations have tiers; walls, gear and hammers do too. Titanium
-  above steel is wanted but should wait until steel has been played with.
+- Deployables and stations have tiers; walls, gear and hammers do too. A tier
+  is `variantOf(base, { … })` in `structures.js`: write only the numbers that
+  change, and the mesh and the behaviour come with it. Titanium above steel is
+  wanted but should wait until steel has been played with.
 - **`Game` is down to ~300 lines**: the constructor, the frame loop, `restart`,
   `gameOver`, and the test switches — sandbox, the cost heatmap, the clock
   pause — which stay because they cut across every system at once. Everything
