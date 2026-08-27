@@ -26,7 +26,7 @@ server (`npm start`) is needed rather than opening the file.
 | File | What it owns |
 | --- | --- |
 | `src/data/config.js` | every tunable: cycle length, hunger, hordes, sky, save keys |
-| `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph |
+| `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph; `DEPLOYABLES` declares the carryable placeables and prices them from their structure |
 | `src/data/resources.js` | tree, bush, berry bush, rock, ore, mine, quarry |
 | `src/data/structures.js` | everything placeable, with its own `build()` mesh factory; tiers are `variantOf` the thing below them |
 | `src/data/materials.js` | the shared `MATS` / `GEO` pools, and `buildGeometry()` that fills them |
@@ -187,6 +187,13 @@ moves out of `Game` fails only when the button is actually pressed — nothing
 earlier catches it. The world tap goes through `harness.worldTap`, which
 updates the matrices by hand first: the stubbed renderer never does, and the
 raycast behind the tap reads them.
+
+`tests/catalog.test.js` needs no browser at all: it links the data modules,
+runs them with a stubbed THREE and checks the tables against each other - that
+every deployable names a structure that exists, that the item and the structure
+point at each other, and that a deployable's recipe shares its structure's cost
+object rather than a copy of the numbers. Adding content is one line in one
+table and one entry in another, and those are the two mistakes it makes.
 
 Things worth asserting after any change to placement or meshes:
 

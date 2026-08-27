@@ -16,22 +16,6 @@ export const ITEMS = {
                  food: 46, icon: "meat", tint: "#e0a06a" },
   fiber:       { id: "fiber", label: "Plant fibre", kind: "material", stack: 99, icon: "fiber", tint: "#9fbf6a" },
   cloth:       { id: "cloth", label: "Cloth", kind: "material", stack: 99, icon: "cloth", tint: "#d8cfae" },
-  torch:       { id: "torch", label: "Torch", kind: "deployable", stack: 20,
-                 structure: "torch", icon: "torch", tint: "#ffb257",
-                 lightsHand: true, burnTime: 300,
-                 hold: { mat: "wood", len: 0.5, head: false } },
-  coal_torch:  { id: "coal_torch", label: "Coal torch", kind: "deployable", stack: 20,
-                 structure: "coal_torch", icon: "torch", tint: "#ffd08a",
-                 lightsHand: true, burnTime: 900,
-                 hold: { mat: "wood", len: 0.5, head: false } },
-  iron_spikes: { id: "iron_spikes", label: "Iron spikes", kind: "deployable", stack: 20,
-                 structure: "iron_spikes", icon: "spikes", tint: "#a8b0bb" },
-  steel_ballista: { id: "steel_ballista", label: "Steel ballista", kind: "deployable", stack: 5,
-                 structure: "steel_ballista", icon: "route", tint: "#8fa8c8" },
-  campfire:    { id: "campfire", label: "Campfire", kind: "deployable", stack: 5,
-                 structure: "campfire", icon: "fire", tint: "#ff8a3c" },
-  seed:        { id: "seed",  label: "Tree seed", kind: "deployable", stack: 40,
-                 structure: "sapling", icon: "seed", tint: "#7fc46a" },
   iron_ore:    { id: "iron_ore",    label: "Iron ore",  kind: "material", stack: 99, icon: "ore",   tint: "#c08a4a" },
   coal:        { id: "coal", label: "Charcoal", kind: "material", stack: 99, icon: "coal", tint: "#5c5f66" },
   rope:        { id: "rope", label: "Rope", kind: "material", stack: 60, icon: "rope", tint: "#c2a86a" },
@@ -114,17 +98,30 @@ export const ITEMS = {
 };
 
 /* Rust's split: walls and gates are built straight from materials in build
- * mode, while turrets and traps are crafted, carried and deployed. */
+ * mode, while turrets and traps are crafted, carried and deployed. Every one
+ * of them is an item too, and they are all the same item - so each line says
+ * only what makes it different and the loop below fills in the rest. */
 export const DEPLOYABLES = {
-  ballista: { label: "Ballista",      icon: "route",  tint: "#c8d4dc" },
-  spikes:   { label: "Wooden spikes", icon: "spikes", tint: "#b58a55" },
-  snare:    { label: "Snare trap",    icon: "snare",  tint: "#9aa0a8" }
+  ballista:       { label: "Ballista",       icon: "route",  tint: "#c8d4dc" },
+  spikes:         { label: "Wooden spikes",  icon: "spikes", tint: "#b58a55" },
+  iron_spikes:    { label: "Iron spikes",    icon: "spikes", tint: "#a8b0bb" },
+  snare:          { label: "Snare trap",     icon: "snare",  tint: "#9aa0a8" },
+  campfire:       { label: "Campfire",       icon: "fire",   tint: "#ff8a3c", stack: 5 },
+  steel_ballista: { label: "Steel ballista", icon: "route",  tint: "#8fa8c8", stack: 5 },
+  // A torch is the one deployable you hold lit, so it carries a hand mesh.
+  torch:          { label: "Torch",          icon: "torch",  tint: "#ffb257",
+                    lightsHand: true, burnTime: 300,
+                    hold: { mat: "wood", len: 0.5, head: false } },
+  coal_torch:     { label: "Coal torch",     icon: "torch",  tint: "#ffd08a",
+                    lightsHand: true, burnTime: 900,
+                    hold: { mat: "wood", len: 0.5, head: false } },
+  // The one whose item is not named after the structure it plants.
+  seed:           { label: "Tree seed",      icon: "seed",   tint: "#7fc46a",
+                    stack: 40, structure: "sapling" }
 };
 for (const id in DEPLOYABLES) {
-  ITEMS[id] = {
-    id, label: DEPLOYABLES[id].label, kind: "deployable", stack: 20,
-    structure: id, icon: DEPLOYABLES[id].icon, tint: DEPLOYABLES[id].tint
-  };
+  ITEMS[id] = Object.assign({ id, kind: "deployable", stack: 20, structure: id },
+                            DEPLOYABLES[id]);
 }
 
 export const ITEM_DESC = {
