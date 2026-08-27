@@ -36,7 +36,7 @@ export class GearSystem {
     s.inv.slots[s.index] = null;
     for (const k in parts) this.game.packs.giveOrDrop(k, parts[k], this.game.player.position.x, this.game.player.position.z);
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.ui.toast(Object.keys(parts).length
       ? "Broke it down: +" + costText(parts)
       : "Broke it down, nothing usable left");
@@ -63,7 +63,7 @@ export class GearSystem {
     if (!this.game.economy.canAfford(price)) { this.game.ui.toast("Not enough materials"); return false; }
     this.game.economy.spend(price);
     entry.dur = def.durability;
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.ui.toast(def.label + " restored");
     return true;
   }

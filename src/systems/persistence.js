@@ -117,10 +117,9 @@ export class Persistence {
     this.game.cycle.lastLight = -1;
     this.game.stats = s.stats || this.game.stats;
 
-    this.game.path.dirty = true;
-    for (const id in this.game.fields) this.game.fields[id].sig = "";
+    this.game.paths.invalidateAll();
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.ui.setHp(this.game.player.hp / CONFIG.player.maxHp);
     this.game.running = true;
     this.game.ui.showOverlay(false);

@@ -122,7 +122,7 @@ export class ResourceSystem {
     if (!g.inBounds(cx, cy) || !g.isFree(g.idx(cx, cy)) || g.node[g.idx(cx, cy)]) return null;
     const node = new ResourceNode(this.game, def, cx, cy, growth);
     this.nodes.push(node);
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
     return node;
   }
 
@@ -205,7 +205,7 @@ export class ResourceSystem {
     for (let i = this.nodes.length - 1; i >= 0; i--) {
       const n = this.nodes[i];
       n.update(dt);
-      if (n.dead) { n.dispose(); this.nodes.splice(i, 1); this.game.path.dirty = true; }
+      if (n.dead) { n.dispose(); this.nodes.splice(i, 1); this.game.paths.invalidate(); }
     }
   }
 

@@ -45,7 +45,7 @@ export class SlotMoves {
       eq.worn.armor = other && dst.inv === this.game.economy.inv ? other : null;
       if (other && dst.inv !== this.game.economy.inv) { this.game.ui.toast("That slot is taken"); return; }
       dst.inv.slots[dst.index] = entry;
-      this.game.onLoadoutChanged();
+      this.game.equip.changed();
       return;
     }
 
@@ -65,7 +65,7 @@ export class SlotMoves {
       dst.inv.slots[dst.index] = a;
     }
     this.game.economy._sync();          // the HUD mirror and build affordability
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
   }
 
   /** One tap sends a stack to the other container. */
@@ -88,7 +88,7 @@ export class SlotMoves {
       else src.inv.slots[src.index] = null;
     }
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.packs.clearEmpty();
   }
 
@@ -108,7 +108,7 @@ export class SlotMoves {
     }
     this.game.ui.toast(moved ? "Stored " + moved : "Chest is full");
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
   }
 
   /** Puts one slot's contents on the ground in front of the player. */
@@ -127,7 +127,7 @@ export class SlotMoves {
     const p = this.game.player.position;
     this.game.packs.dropItemsAt(p.x + Math.sin(this.game.player.yaw) * 1.4, p.z + Math.cos(this.game.player.yaw) * 1.4, [entry]);
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.ui.refreshBackpack();
     this.game.ui.toast("Dropped " + ITEMS[entry.id].label.toLowerCase());
   }

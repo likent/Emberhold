@@ -184,7 +184,7 @@ export class BuildSystem {
       const mode = this.placementMode(c.cx, c.cy);
       if (mode === "replace") { this.replaceAt(c.cx, c.cy); built++; continue; }
       if (mode !== "place") continue;
-      this.game.payForPlacement(this.selected);
+      this.payFor(this.selected);
       if (this.selected.plantsResource) {
         this.game.resources.plantAt(RESOURCES[this.selected.plantsResource], c.cx, c.cy, 0.06);
       } else {
@@ -204,6 +204,53 @@ export class BuildSystem {
   }
 
   /* ---- placement -------------------------------------------------------- */
+
+  /** Deployables are paid for in carried units, building blocks in materials. */
+  canAfford(def) {
+    const eco = this.game.economy;
+    if (def.isCore) return true;
+    if (def.item) return this.game.sandbox || eco.inv.count(def.item) > 0;
+    return eco.canAfford(def.cost);
+  }
+
+  payFor(def) {
+    if (this.game.sandbox || def.isCore) return;
+    if (def.item) {
+      this.game.economy.spend({ [def.item]: 1 });
+      // Spending the last one empties the hand, so the hand-driven UI - the
+      // held mesh, the action icon, the ghost - has to be told.
+      this.game.equip.changed();
+    } else {
+      this.game.economy.spend(def.cost);
+    }
+  }
+
+  /** Choosing a deployable anywhere arms it and opens placement. */
+  selectFromBag(id) {
+    const ui = this.game.ui;
+    this.select(id);
+    if (!this.active) this.setActive(true);
+    ui.togglePalette(false);
+    if (ui.panel.classList.contains("show")) ui.toggleBackpack();
+    ui.toast(STRUCTURES[id].label + " ready to place");
+  }
+
+  /**
+   * A deployable is armed because it is in your hand. Once it is not - you
+   * ran out, or picked another slot - the preview must not linger.
+   */
+  syncSelection() {
+    const sel = this.selected;
+    if (!this.active || !sel || !sel.item) return;
+    const hand = this.game.equip.handItem();
+    if (hand && hand.kind === "deployable") {
+      if (hand.structure !== sel.id) this.select(hand.structure);
+      return;
+    }
+    this.cancelLine();
+    this.setActive(false);
+    this.game.ui.toast("Out of " + sel.label.toLowerCase());
+  }
 
   /** Carrying the core overrides whatever is selected in the palette. */
   activeDef() { return this.game.core.carrying ? STRUCTURES.core : this.selected; }
@@ -253,7 +300,7 @@ export class BuildSystem {
     if (!g.inBounds(cx, cy)) return false;
     const i = g.idx(cx, cy);
     if (!g.isFree(i) || g.node[i]) return false;
-    if (!this.game.canAffordPlacement(this.activeDef())) return false;
+    if (!this.canAfford(this.activeDef())) return false;
     if (this._occupiedByBody(cx, cy)) return false;
     return true;
   }
@@ -291,7 +338,7 @@ export class BuildSystem {
     const def = this.activeDef();
     if (current === def) return "remove";
     // Different piece on an occupied cell: swap it, refunding the old one.
-    return this.game.canAffordPlacement(def) && !this._occupiedByBody(cx, cy) ? "replace" : "no";
+    return this.canAfford(def) && !this._occupiedByBody(cx, cy) ? "replace" : "no";
   }
 
   /** Swaps one piece for another in place, paying the difference. */
@@ -305,7 +352,7 @@ export class BuildSystem {
       if (old.item) this.game.economy.add(old.item, 1);
       else if (old.refund) this.game.economy.addAll(old.refund);
     }
-    this.game.payForPlacement(def);
+    this.payFor(def);
     this.create(cx, cy, def);
     this.game.fx.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 5, 0xd9b678);
   }
@@ -320,12 +367,12 @@ export class BuildSystem {
     if (mode === "replace") { this.replaceAt(cx, cy); return; }
     if (!this.canPlace(cx, cy)) {
       const def = this.activeDef();
-      if (this.game.canAffordPlacement(def)) this.game.ui.toast("Blocked");
+      if (this.canAfford(def)) this.game.ui.toast("Blocked");
       else if (def.item) this.game.ui.toast("Craft a " + def.label.toLowerCase() + " first");
       else this.game.ui.toast("Need " + costText(def.cost));
       return;
     }
-    this.game.payForPlacement(this.selected);
+    this.payFor(this.selected);
     if (this.selected.plantsResource) {
       this.game.resources.plantAt(RESOURCES[this.selected.plantsResource], cx, cy, 0.06);
       this.game.stats.planted++;
@@ -342,7 +389,7 @@ export class BuildSystem {
     else g.setStructure(cx, cy, def, def.hp);
     this.meta.set(g.idx(cx, cy), { orient: this._orientFromPlayer() });
     this.refreshArea(cx, cy);
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
   }
 
   /** Deployables are picked back up whole; building blocks yield salvage. */
@@ -369,7 +416,7 @@ export class BuildSystem {
     g.clearCell(cx, cy);
     this.game.fx.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 8, 0xd9b678);
     this.refreshArea(cx, cy);     // neighbours lose an arm
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
     if (wasCore) this.game.core.lost();
   }
 
@@ -460,7 +507,7 @@ export class BuildSystem {
     const cx = i % g.w, cy = (i / g.w) | 0;
     g.clearCell(cx, cy);
     this.refreshArea(cx, cy);
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
     return hp;
   }
 

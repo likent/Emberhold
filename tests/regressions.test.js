@@ -96,7 +96,7 @@ module.exports = {
     });
     t.game.economy.inv.slots[1] = { id: "steel_axe", count: 1, dur: 800 };
     t.game.equip.selectHand(1);
-    t.game.onLoadoutChanged();
+    t.game.equip.changed();
     t.game.economy._sync();
 
     const tree = t.game.resources.nodes.find(n => n.def.id === "tree" && n.growth > 0.9);

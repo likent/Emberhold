@@ -184,7 +184,7 @@ export class Player extends Entity {
         this.game.economy.inv.slots[this.game.equip.hand] = null;
         this.game.ui.toast("Your last torch burnt out");
         this.game.economy._sync();
-        this.game.onLoadoutChanged();
+        this.game.equip.changed();
         return;
       }
       this.torchFuel = item.burnTime;
@@ -228,7 +228,7 @@ export class Player extends Entity {
     entry.count--;
     if (entry.count <= 0) this.game.economy.inv.slots[this.game.equip.hand] = null;
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.swingT = 0;
     return true;
   }
@@ -287,12 +287,12 @@ export class Player extends Entity {
   }
 
   takeDamage(amount) {
-    if (this.game.sandbox || this.downed) { this.game.shake(0.12); return; }
+    if (this.game.sandbox || this.downed) { this.game.rig.kick(0.12); return; }
     const soaked = amount * this.game.equip.armor;
     this.game.equip.wearArmor(soaked / 4);
     this.hp -= amount - soaked;
     this.game.ui.setHp(this.hp / CONFIG.player.maxHp);
-    this.game.shake(0.22);
+    this.game.rig.kick(0.22);
     if (this.hp <= 0) this._down();
   }
 
@@ -309,7 +309,7 @@ export class Player extends Entity {
     this.object.visible = false;
     this.hp = 0;
     this.game.ui.setHp(0);
-    this.game.shake(0.7);
+    this.game.rig.kick(0.7);
     this.game.fx.spawnChips(this.position.x, 1, this.position.z, 10, 0x9fbcd0);
   }
 

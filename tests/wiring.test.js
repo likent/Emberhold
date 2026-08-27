@@ -66,6 +66,20 @@ module.exports = {
     assert(!t.errors.length, "no errors", t.errors[0]);
   },
 
+  "a tap on the ground builds where you pointed": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();                       // no tree may stand where the tap lands
+    t.game.economy.add("wood", 200);
+    t.game.build.setActive(true);
+    t.game.build.select("fence");
+    const before = t.game.build.placed.size;
+    t.worldTap(512, 700);                 // low on the screen: ground near the player
+    assert(t.game.build.placed.size === before + 1, "a fence went up",
+      before + " -> " + t.game.build.placed.size);
+    assert(!t.errors.length, "no errors", t.errors[0]);
+  },
+
   "gear can be priced, repaired and broken down": async assert => {
     const t = await boot();
     t.sim(4);

@@ -46,7 +46,7 @@ export class CoreSystem {
     this.carrying = true;
     this._shoulder();
     this.game.build.ghostKey = "";
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
     this.game.ui.toast("Core lifted - they are coming for you now");
   }
 
@@ -84,7 +84,7 @@ export class CoreSystem {
     g.hp[this.cell] = this.carriedHp;      // damage travels with it
     this.stow();
     this.game.build.ghostKey = "";
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
   }
 
   /** Puts the core back on the player's back after a load. */

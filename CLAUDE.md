@@ -37,11 +37,12 @@ server (`npm start`) is needed rather than opening the file.
 | `src/core/collision.js` | sliding movement against the grid, one axis at a time |
 | `src/world/entity.js` → `world/player.js` / `world/enemy.js` / `world/resources.js` | `update(dt)` pattern |
 | `src/world/scenery.js` | lights, ground plane, the two sky presets and the blend between them |
-| `src/systems/build.js` | placement, auto-tiling, upgrades, repair, stations |
-| `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, durability, loadout |
+| `src/systems/build.js` | placement, auto-tiling, upgrades, repair, and what a thing costs |
+| `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, the starting kit, durability, loadout |
 | `src/systems/crafting.js` | timed jobs and the four-slot output tray |
 | `src/systems/daycycle.js` / `hordes.js` | raids by night, wandering bands by day |
 | `src/systems/combat.js` / `healthbars.js` | swing arcs, damage, floating bars |
+| `src/systems/fields.js` | which flow field may rebuild this frame, and what it aims at |
 | `src/systems/core.js` | the core: spawn, lift, carry, set down, lose |
 | `src/systems/packs.js` | sacks on the ground — death drops, spilled harvests, rot |
 | `src/systems/persistence.js` | the save format, autosave, and booting from a corrupt one |
@@ -53,7 +54,7 @@ server (`npm start`) is needed rather than opening the file.
 | `src/ui/ui.js` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
 | `src/ui/buttons.js` | every on-screen button, bound by id; tap and hold |
 | `src/ui/input.js` / `camera.js` / `icons.js` / `heatmap.js` | thumbstick, rig, SVG glyphs, debug overlay |
-| `src/game.js` | wiring, the frame loop, the flow-field schedule |
+| `src/game.js` | wiring, the frame loop, the sandbox and debug switches |
 | `src/main.js` | entry point: error reporting, then `new Game()` |
 
 Every system follows the same shape: a class whose constructor takes the game
@@ -76,6 +77,11 @@ enterCost = cellSize / speed + structureHp / dpsVsStructure
 That single formula decides break-or-detour. A steel wall costs a raider 236
 seconds and a brute 124, so both look for a way around; if there is none they
 chew through, and that is correct.
+
+`systems/fields.js` owns the other half: which class may rebuild this frame
+(at most one, and only if its targets or the grid actually changed), and what
+the field aims at. `paths.invalidate()` is how the rest of the game says the
+world moved.
 
 Three hard-won rules:
 
@@ -139,14 +145,15 @@ else repairs anything.
   running away beats holding a wall.
 - Deployables and stations have tiers; walls, gear and hammers do too. Titanium
   above steel is wanted but should wait until steel has been played with.
-- **`Game` is down to ~470 lines** — the frame loop, the flow-field schedule,
-  the sandbox and debug toggles, and the wiring that builds every system.
-  Carrying, packs, persistence, stations, slot moves, gear pricing, effects,
-  scenery and button binding each moved to their own file and take the game as
-  their one dependency. What is left that still reads like a rule rather than
-  wiring: `canAffordPlacement` / `payForPlacement`, `_syncBuildSelection` and
-  `_giveStartingKit` — placement economics, which probably belong beside
-  `build.js`.
+- **`Game` is down to ~300 lines**: the constructor, the frame loop, `restart`,
+  `gameOver`, and the test switches — sandbox, the cost heatmap, the clock
+  pause — which stay because they cut across every system at once. Everything
+  else is a system taking the game. Do not split it further; what is left is
+  the wiring the file exists for.
+- **`ui/ui.js` is the god file now** — 880 lines. The nine panel renderers
+  (`_renderChest` / `_renderStation` / `_renderStats` / `_renderSalvage` / …)
+  are ~330 of them and the drag-and-drop another ~80; both would come out
+  cleanly, and `showTab` is the only thing the rest of the game needs.
 
 ## Testing
 
@@ -163,9 +170,12 @@ and understands only the dialect above; that is deliberate, so a stray default
 export fails loudly instead of quietly producing a broken bundle. It is not a
 build step — nothing ships through it.
 
-`tests/wiring.test.js` presses every button and walks every tab. The panel is
-hand-rolled DOM bound by element id, so a method that moves out of `Game`
-fails only when the button is actually pressed — nothing earlier catches it.
+`tests/wiring.test.js` presses every button, walks every tab and taps the
+ground. The panel is hand-rolled DOM bound by element id, so a method that
+moves out of `Game` fails only when the button is actually pressed — nothing
+earlier catches it. The world tap goes through `harness.worldTap`, which
+updates the matrices by hand first: the stubbed renderer never does, and the
+raycast behind the tap reads them.
 
 Things worth asserting after any change to placement or meshes:
 

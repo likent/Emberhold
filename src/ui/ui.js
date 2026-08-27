@@ -5,6 +5,10 @@ import { RECIPES } from "../data/recipes.js";
 import { STRUCTURES } from "../data/structures.js";
 import { paintIcons } from "./icons.js";
 
+/* Tabs with something ticking on them: everything else only changes when the
+ * player does something, and repaints itself then. */
+const TIMED_TABS = ["craft", "bench", "cook", "furnace", "stats"];
+
 export class UI {
   constructor(game) {
     this.game = game;
@@ -75,7 +79,7 @@ export class UI {
     sub.innerHTML = "";
     for (const def of this.categories[cat]) {
       const row = document.createElement("div");
-      const affordable = this.game.canAffordPlacement(def);
+      const affordable = this.game.build.canAfford(def);
       row.className = "variant" + (affordable ? "" : " poor") +
                       (this.game.build.selected === def ? " on" : "");
       row.innerHTML = '<span class="nm">' + def.label + "</span>" +
@@ -305,10 +309,25 @@ export class UI {
    * every frame meant minting new SVG nodes sixty times a second, which is
    * exactly the sort of churn a phone runs out of memory over.
    */
+  /**
+   * The panel does not redraw itself. Only a queue in progress changes on its
+   * own, so the tabs that show one are repainted four times a second and the
+   * rest not at all.
+   */
+  tick(dt) {
+    if (this.game.handQueue.busy || this._craftHudShown) this.refreshCraftHud();
+    this._tick = (this._tick || 0) + dt;
+    if (this._tick <= 0.25) return;
+    this._tick = 0;
+    if (TIMED_TABS.indexOf(this.tab) >= 0 && this.panel.classList.contains("show")) {
+      this.refreshBackpack();
+    }
+  }
+
   refreshCraftHud() {
     const hud = document.getElementById("craftHud");
     const queue = this.game.handQueue;
-    this.game._craftHudShown = queue.busy;
+    this._craftHudShown = queue.busy;
     hud.classList.toggle("show", queue.busy);
     if (!queue.busy) { hud.innerHTML = ""; this._craftHudKey = ""; return; }
 
@@ -359,7 +378,7 @@ export class UI {
           eq.selectHand(i);
           // A deployable in hand means you intend to put it down.
           const def = entry && ITEMS[entry.id];
-          if (def && def.kind === "deployable") this.game.selectBuildingFromBag(def.structure);
+          if (def && def.kind === "deployable") this.game.build.selectFromBag(def.structure);
         },
         entry ? () => this.showItemInfo(ITEMS[entry.id], { entry, slot: i }) : null,
         i);
@@ -437,7 +456,7 @@ export class UI {
       // deployable or puts armour on, which are not slot moves.
       this.bindCell(cell,
         entry ? () => {
-          if (def.kind === "deployable") this.game.selectBuildingFromBag(def.structure);
+          if (def.kind === "deployable") this.game.build.selectFromBag(def.structure);
           else if (def.slot === "armor" && eq.equipArmor(index)) this.refreshBackpack();
         } : null,
         entry ? () => this.showItemInfo(def, { entry, slot: index }) : null,
@@ -527,7 +546,7 @@ export class UI {
         entry ? () => {
           if (tray.take(index, this.game.economy.inv)) {
             this.game.economy._sync();
-            this.game.onLoadoutChanged();
+            this.game.equip.changed();
             this.refreshBackpack();
           } else this.toast("Backpack full");
         } : null,
@@ -633,9 +652,9 @@ export class UI {
 
     head("Pathfinding");
     row("Raiders target", g.huntPlayer ? "you" : "the core");
-    row("Field rebuilds", g._pathStats.rate.toFixed(1) + " / s");
-    row("Cost per rebuild", g._pathStats.avg.toFixed(2) + " ms");
-    row("Live classes", Object.keys(g.fields).filter(id => g._classActive(id)).length);
+    row("Field rebuilds", g.paths.stats.rate.toFixed(1) + " / s");
+    row("Cost per rebuild", g.paths.stats.avg.toFixed(2) + " ms");
+    row("Live classes", g.paths.liveClasses());
 
     head("Save");
     const saveRow = (label, value, fn) => {
@@ -811,7 +830,7 @@ export class UI {
       const chip = this.chips[cat];
       chip.querySelector(".sub").textContent = mine ? mine.label : costText(shown.cost);
       chip.classList.toggle("on", !!mine);
-      chip.classList.toggle("poor", !list.some(d => this.game.canAffordPlacement(d)));
+      chip.classList.toggle("poor", !list.some(d => this.game.build.canAfford(d)));
     }
   }
   setSandbox(on) {

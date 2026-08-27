@@ -12,11 +12,19 @@ export class Economy {
     this.res = { wood: 0, stone: 0 };          // read-only mirror for the HUD
     this.infinite = CONFIG.sandbox.enabled;    // mirrors game.sandbox
   }
+  /**
+   * What a run starts with: bare hands and a little wood. The club costs five
+   * wood and four seconds by hand, so the first thing you do is make your own
+   * - a free starter weapon skipped that step and never wore out, since it was
+   * built without a durability entry at all.
+   */
   reset() {
     this.inv.clear();
     this.inv.add("wood", CONFIG.economy.startWood);
     this.inv.add("stone", CONFIG.economy.startStone);
+    this.game.equip.hand = 0;
     this._sync();
+    this.game.equip.changed();
   }
   add(key, n) {
     if (n <= 0) return;

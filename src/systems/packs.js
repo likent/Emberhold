@@ -29,7 +29,7 @@ export class PackSystem {
     if (!carried.length) return;
     this.dropItemsAt(x, z, carried, "death");
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.game.ui.toast("You dropped everything you carried");
   }
 
@@ -111,7 +111,7 @@ export class PackSystem {
       else left++;
     }
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.clearEmpty();
     if (!left) this.game.ui.toast("Sack emptied");
     else this.game.ui.toast(left + " stacks left, sack rots in " + Math.ceil(pack.life) + "s");

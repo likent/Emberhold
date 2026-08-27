@@ -44,7 +44,7 @@ export class Enemy extends Entity {
 
   update(dt) {
     const game = this.game, grid = game.grid, player = game.player;
-    const path = game.fieldFor(this.type);
+    const path = game.paths.field(this.type);
     if (!player || !path) return;
 
     this.attackCd -= dt;
@@ -214,7 +214,7 @@ export class Enemy extends Entity {
 
   /** Attacks the adjacent structure that best shortens the route. */
   _chewAdjacent(dt, sparingCore) {
-    const g = this.game.grid, path = this.game.fields[this.type.id];
+    const g = this.game.grid, path = this.game.paths.fields[this.type.id];
     const cx = g.cellX(this.position.x), cy = g.cellY(this.position.z);
     let best = -1, bestDist = Infinity;
     for (let dy = -1; dy <= 1; dy++) {
