@@ -60,7 +60,7 @@ export class DayCycle {
     const light = this.daylight();
     if (Math.abs(light - this.lastLight) < 0.01) return;
     this.lastLight = light;
-    this.game.applySkyBlend(light);
+    this.game.scenery.applySkyBlend(light);
   }
 
   isBigRaid() { return this.day % CONFIG.cycle.bigRaidEvery === 0; }

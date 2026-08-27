@@ -93,7 +93,7 @@ export class InputSystem {
       if (e.code === "KeyG") this.game.toggleDebug();
       if (e.code === "KeyQ") this.game.cycleStructure();
       if (e.code === "KeyK") this.game.toggleSandbox();
-      if (e.code === "KeyN") this.game.waves.spawnWave();
+      if (e.code === "KeyN") this.game.cycle.spawnRaid();
       if (e.code === "KeyP") this.game.toggleWavePause();
       if (e.code === "KeyF" && !e.repeat) {
         const item = this.game.equip.handItem();

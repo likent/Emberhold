@@ -29,21 +29,37 @@ server (`npm start`) is needed rather than opening the file.
 | `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph |
 | `src/data/resources.js` | tree, bush, berry bush, rock, ore, mine, quarry |
 | `src/data/structures.js` | everything placeable, with its own `build()` mesh factory |
-| `src/data/materials.js` | the shared `MATS` / `GEO` pools every mesh draws from |
+| `src/data/materials.js` | the shared `MATS` / `GEO` pools, and `buildGeometry()` that fills them |
 | `src/core/grid.js` | 40×40 cells, cell size 2. Cell types: EMPTY/BLOCKER/STRUCT/TRAP |
 | `src/core/minheap.js` / `core/pathfinder.js` | one Dijkstra flow field per enemy class |
 | `src/core/autotile.js` | neighbour masks, arms and corner braces for wall runs |
 | `src/core/util.js` | `clamp`, `lerpAngle`, `costText` — that is all |
+| `src/core/collision.js` | sliding movement against the grid, one axis at a time |
 | `src/world/entity.js` → `world/player.js` / `world/enemy.js` / `world/resources.js` | `update(dt)` pattern |
+| `src/world/scenery.js` | lights, ground plane, the two sky presets and the blend between them |
 | `src/systems/build.js` | placement, auto-tiling, upgrades, repair, stations |
 | `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, durability, loadout |
 | `src/systems/crafting.js` | timed jobs and the four-slot output tray |
 | `src/systems/daycycle.js` / `hordes.js` | raids by night, wandering bands by day |
 | `src/systems/combat.js` / `healthbars.js` | swing arcs, damage, floating bars |
+| `src/systems/core.js` | the core: spawn, lift, carry, set down, lose |
+| `src/systems/packs.js` | sacks on the ground — death drops, spilled harvests, rot |
+| `src/systems/persistence.js` | the save format, autosave, and booting from a corrupt one |
+| `src/systems/stations.js` | what is in reach: bench, fire, furnace, chest, and their buttons |
+| `src/systems/slots.js` | moving entries between backpack, chest, sack, armor, ground |
+| `src/systems/gear.js` | salvage and repair prices, both read off the recipe |
+| `src/systems/fx.js` | chips, collapses, bolts in flight, the swing arc |
+| `src/systems/wildlife.js` | the boars, and nothing else |
 | `src/ui/ui.js` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
+| `src/ui/buttons.js` | every on-screen button, bound by id; tap and hold |
 | `src/ui/input.js` / `camera.js` / `icons.js` / `heatmap.js` | thumbstick, rig, SVG glyphs, debug overlay |
-| `src/game.js` | wiring, the frame loop, save and load |
+| `src/game.js` | wiring, the frame loop, the flow-field schedule |
 | `src/main.js` | entry point: error reporting, then `new Game()` |
+
+Every system follows the same shape: a class whose constructor takes the game
+and stores it, hung off `Game` under a short name (`game.packs`, `game.saves`,
+`game.core`). Systems reach each other through the game, never by importing
+one another — that is what keeps the module graph a tree.
 
 ### Pathfinding — read this before touching it
 
@@ -123,11 +139,14 @@ else repairs anything.
   running away beats holding a wall.
 - Deployables and stations have tiers; walls, gear and hammers do too. Titanium
   above steel is wanted but should wait until steel has been played with.
-- **`Game` is still a god class** — 1500 lines covering the frame loop, save
-  format, the core, death packs, slot moves, salvage and repair pricing. The
-  file split stopped at the class boundary on purpose, because breaking it up
-  means moving methods, not moving lines. Carrying, packs and persistence look
-  like the three seams.
+- **`Game` is down to ~470 lines** — the frame loop, the flow-field schedule,
+  the sandbox and debug toggles, and the wiring that builds every system.
+  Carrying, packs, persistence, stations, slot moves, gear pricing, effects,
+  scenery and button binding each moved to their own file and take the game as
+  their one dependency. What is left that still reads like a rule rather than
+  wiring: `canAffordPlacement` / `payForPlacement`, `_syncBuildSelection` and
+  `_giveStartingKit` — placement economics, which probably belong beside
+  `build.js`.
 
 ## Testing
 
@@ -143,6 +162,10 @@ jsdom cannot import ES modules, so `tests/link.js` walks the import graph from
 and understands only the dialect above; that is deliberate, so a stray default
 export fails loudly instead of quietly producing a broken bundle. It is not a
 build step — nothing ships through it.
+
+`tests/wiring.test.js` presses every button and walks every tab. The panel is
+hand-rolled DOM bound by element id, so a method that moves out of `Game`
+fails only when the button is actually pressed — nothing earlier catches it.
 
 Things worth asserting after any change to placement or meshes:
 

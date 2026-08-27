@@ -36,7 +36,7 @@ export class Economy {
     this._sync();
   }
   craft(recipe) {
-    const station = recipe.station ? this.game.nearestStation(recipe.station) : null;
+    const station = recipe.station ? this.game.stations.nearest(recipe.station) : null;
     if (recipe.station && !station) { this.game.ui.toast("Needs a workbench"); return false; }
     if (station && (recipe.tier || 1) > (station.tier || station.def.tier || 1)) {
       this.game.ui.toast("Needs a reinforced bench");

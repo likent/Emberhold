@@ -40,7 +40,7 @@ src/core/       grid, flow field, auto-tiling, small helpers
 src/world/      things with a mesh and an update — player, enemies, nodes
 src/systems/    build, crafting, day cycle, hordes, combat, economy
 src/ui/         panel, hotbar, input, camera, debug overlay
-src/game.js     wiring, the frame loop, save and load
+src/game.js     wiring and the frame loop
 ```
 
 ## Running the tests

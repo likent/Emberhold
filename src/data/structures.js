@@ -107,7 +107,7 @@ export const STRUCTURES = {
       head.rotation.y = lerpAngle(head.rotation.y, Math.atan2(dx, dz), clamp(6 * dt, 0, 1));
       if (s.cd <= 0) {
         s.cd = this.fireCooldown;
-        ctx.game.spawnBolt(ctx.mesh.position.x, 1.35, ctx.mesh.position.z, target, this.damage);
+        ctx.game.fx.spawnBolt(ctx.mesh.position.x, 1.35, ctx.mesh.position.z, target, this.damage);
       }
     }
   },
@@ -141,7 +141,7 @@ export const STRUCTURES = {
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.dps * dt);
       if (game.grid.damageStructure(i, this.dps * dt)) game.build.destroy(i);
-      if (Math.random() < dt * 6) game.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
+      if (Math.random() < dt * 6) game.fx.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
     }
   },
 
@@ -171,7 +171,7 @@ export const STRUCTURES = {
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.damage);
       enemy.rooted = this.rootTime;
-      game.spawnChips(enemy.position.x, 0.5, enemy.position.z, 6, 0xb5563f);
+      game.fx.spawnChips(enemy.position.x, 0.5, enemy.position.z, 6, 0xb5563f);
       game.build.destroy(i);
     }
   },
@@ -373,7 +373,7 @@ export const STRUCTURES = {
     },
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.dps * dt);
-      if (Math.random() < dt * 4) game.spawnChips(enemy.position.x, 0.7, enemy.position.z, 1, 0xffb257);
+      if (Math.random() < dt * 4) game.fx.spawnChips(enemy.position.x, 0.7, enemy.position.z, 1, 0xffb257);
     }
   },
 
@@ -449,7 +449,7 @@ export const STRUCTURES = {
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.dps * dt);
       if (game.grid.damageStructure(i, this.dps * dt * 0.35)) game.build.destroy(i);
-      if (Math.random() < dt * 6) game.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
+      if (Math.random() < dt * 6) game.fx.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
     }
   },
 

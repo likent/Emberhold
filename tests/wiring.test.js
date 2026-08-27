@@ -1,0 +1,87 @@
+/**
+ * The panel is hand-rolled DOM and every button is bound by element id, so a
+ * method that moved out of Game fails at the moment the button is pressed and
+ * nowhere earlier. This presses all of them, walks every tab, and runs the
+ * handful of flows that reach across systems - carrying the core, dying,
+ * salvaging - because those are the seams where a rename goes unnoticed.
+ */
+const { boot } = require("./harness");
+
+const BUTTONS = ["buildBtn", "debugBtn", "huntBtn", "sandboxBtn", "waveCard",
+  "coreBtn", "pickBtn", "bagBtn", "benchBtn", "furnaceBtn", "packBtn", "takeAll",
+  "cookBtn", "chestBtn", "storeAll", "invClose", "waveBtn", "hordeBtn",
+  "placeBtn", "actionBtn", "restart"];
+
+const TABS = ["craft", "bench", "cook", "furnace", "stats", "chest", "pack"];
+
+module.exports = {
+  "every button reaches a live method": async assert => {
+    const t = await boot();
+    t.sim(4);
+    for (const id of BUTTONS) {
+      const el = t.$(id);
+      assert(!!el, "button exists", id);
+      if (!el) continue;
+      const before = t.errors.length;
+      t.tap(el);
+      t.sim(2);
+      assert(t.errors.length === before, "pressing " + id + " throws nothing",
+        t.errors[before]);
+    }
+  },
+
+  "every tab of the panel renders": async assert => {
+    const t = await boot();
+    t.sim(4);
+    for (const tab of TABS) {
+      const before = t.errors.length;
+      t.game.ui.showTab(tab);
+      t.game.ui.refreshBackpack();
+      assert(t.errors.length === before, "tab " + tab + " renders", t.errors[before]);
+    }
+  },
+
+  "the core can be carried, dropped and lost": async assert => {
+    const t = await boot();
+    t.sim(4);
+    const home = t.game.core.position();
+    t.game.player.position.set(home.x + 1.5, 0, home.z);
+    t.sim(2);
+
+    t.game.core.lift();
+    assert(t.game.core.carrying, "lifted");
+    t.sim(5);
+    t.game.core.setDown();
+    assert(!t.game.core.carrying, "set down");
+    assert(t.game.core.cell >= 0, "anchored again", String(t.game.core.cell));
+
+    // Dying while carrying has to leave the core somewhere reachable.
+    t.game.core.lift();
+    assert(t.game.core.carrying, "lifted again");
+    t.game.player.takeDamage(9999);
+    t.sim(10);
+    assert(!t.game.core.carrying, "a downed player is not still holding it");
+    assert(t.game.core.cell >= 0, "the core was planted where they fell");
+    assert(t.game.packs.list.length > 0, "and the pack is on the ground");
+    assert(!t.errors.length, "no errors", t.errors[0]);
+  },
+
+  "gear can be priced, repaired and broken down": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.economy.add("wood", 200);
+    t.game.economy.add("stone", 200);
+    t.game.economy.inv.slots[3] = { id: "club", count: 1, dur: 10 };
+
+    const entry = t.game.economy.inv.slots[3];
+    const price = t.game.gear.repairPrice(entry);
+    assert(Object.keys(price).length > 0, "a worn club costs something to fix");
+    assert(t.game.gear.repair(entry), "repaired");
+    assert(entry.dur > 10, "condition restored", String(entry.dur));
+
+    t.game.economy.inv.slots[3] = { id: "club", count: 1, dur: 10 };
+    assert(t.game.gear.salvage("3"), "broken down");
+    assert(!t.game.economy.inv.slots[3], "the slot is empty afterwards");
+    assert(!t.errors.length, "no errors", t.errors[0]);
+  }
+};

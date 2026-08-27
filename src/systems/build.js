@@ -118,7 +118,7 @@ export class BuildSystem {
    * Cells that are blocked or unaffordable are skipped, not aborted on. */
 
   beginLine() {
-    if (!this.active || this.game.carrying) return false;
+    if (!this.active || this.game.core.carrying) return false;
     this.line = { cx: this.aim.cx, cy: this.aim.cy };
     this.lineKey = "";
     return true;
@@ -206,11 +206,11 @@ export class BuildSystem {
   /* ---- placement -------------------------------------------------------- */
 
   /** Carrying the core overrides whatever is selected in the palette. */
-  activeDef() { return this.game.carrying ? STRUCTURES.core : this.selected; }
+  activeDef() { return this.game.core.carrying ? STRUCTURES.core : this.selected; }
 
   updateGhost() {
     const p = this.game.player;
-    if (!p || (!this.active && !this.game.carrying)) return;
+    if (!p || (!this.active && !this.game.core.carrying)) return;
     this.aimAt(
       p.position.x + Math.sin(p.yaw) * CONFIG.grid.cell * 1.4,
       p.position.z + Math.cos(p.yaw) * CONFIG.grid.cell * 1.4
@@ -237,7 +237,7 @@ export class BuildSystem {
       this.game.scene.add(this.ghost);
     }
     this.ghost.position.set(g.centerX(cx), 0.02, g.centerZ(cy));
-    this.ghost.visible = (this.active || this.game.carrying) && !this.line;
+    this.ghost.visible = (this.active || this.game.core.carrying) && !this.line;
     if (this.line) this._refreshLinePreview();
   }
 
@@ -307,7 +307,7 @@ export class BuildSystem {
     }
     this.game.payForPlacement(def);
     this.create(cx, cy, def);
-    this.game.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 5, 0xd9b678);
+    this.game.fx.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 5, 0xd9b678);
   }
 
   placeAtAim() {
@@ -357,7 +357,7 @@ export class BuildSystem {
   destroy(i) {
     const g = this.game.grid;
     const mesh = this.placed.get(i);
-    if (mesh) { this.game.playCollapse(mesh); this.placed.delete(i); }
+    if (mesh) { this.game.fx.playCollapse(mesh); this.placed.delete(i); }
     const wasCore = g.def[i] && g.def[i].isCore;
     this._spillChest(i);
     this._cancelQueue(i);
@@ -367,10 +367,10 @@ export class BuildSystem {
     this.meta.delete(i);
     const cx = i % g.w, cy = (i / g.w) | 0;
     g.clearCell(cx, cy);
-    this.game.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 8, 0xd9b678);
+    this.game.fx.spawnChips(g.centerX(cx), 0.8, g.centerZ(cy), 8, 0xd9b678);
     this.refreshArea(cx, cy);     // neighbours lose an arm
     this.game.path.dirty = true;
-    if (wasCore) this.game.coreLost();
+    if (wasCore) this.game.core.lost();
   }
 
   /* ---- repair -----------------------------------------------------------
@@ -435,7 +435,7 @@ export class BuildSystem {
     g.hp[t.i] += amount;                      // picked up by the timed rebuild
     this.game.equip.wearHand(dt * 1.6);        // hammers wear out like anything else
     if (Math.random() < dt * 5) {
-      this.game.spawnChips(t.mesh.position.x, t.def.height * 0.7, t.mesh.position.z, 1, 0x9fe0b0);
+      this.game.fx.spawnChips(t.mesh.position.x, t.def.height * 0.7, t.mesh.position.z, 1, 0x9fe0b0);
     }
     return true;
   }

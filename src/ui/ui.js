@@ -168,12 +168,12 @@ export class UI {
 
   _slotHasItem(slot) {
     if (slot === "armor") return !!this.game.equip.worn.armor;
-    const s = this.game.resolveSlot(slot);
+    const s = this.game.slots.resolve(slot);
     return !!(s && s.inv.slots[s.index]);
   }
 
   _beginDrag(slot, el) {
-    const s = slot === "armor" ? null : this.game.resolveSlot(slot);
+    const s = slot === "armor" ? null : this.game.slots.resolve(slot);
     const entry = slot === "armor" ? this.game.equip.worn.armor : s.inv.slots[s.index];
     const def = ITEMS[entry.id];
     this.drag = { from: slot, el };
@@ -205,7 +205,7 @@ export class UI {
     const from = this.drag.from;
     this._cancelDrag();
     if (!target) return;
-    this.game.moveSlot(from, target.dataset.slot);
+    this.game.slots.move(from, target.dataset.slot);
   }
 
   _cancelDrag() {
@@ -239,7 +239,7 @@ export class UI {
     if (droppable) {
       const n = extra.entry && extra.entry.count > 1 ? extra.entry.count + " " : "";
       drop.textContent = "Drop " + n + def.label.toLowerCase();
-      this.bindCell(drop, () => { this.game.dropFromSlot(slot); this.modal.classList.remove("show"); }, null);
+      this.bindCell(drop, () => { this.game.slots.drop(slot); this.modal.classList.remove("show"); }, null);
     }
     this.modal.classList.add("show");
   }
@@ -373,24 +373,24 @@ export class UI {
     const eco = this.game.economy, eq = this.game.equip;
 
     // The chest tab only exists while you are standing at one.
-    const chest = this.game.chestInv() && this.game.nearestStation("storage") ? this.game.chestInv() : null;
+    const chest = this.game.stations.chestInv() && this.game.stations.nearest("storage") ? this.game.stations.chestInv() : null;
     document.querySelector('[data-tab="chest"]').classList.toggle("hidden", !chest);
     if (this.tab === "chest" && !chest) { this.showTab("bag"); return; }
 
-    const sack = this.game.nearestPack() ? this.game.packInv() : null;
+    const sack = this.game.packs.nearest() ? this.game.packs.openInv() : null;
     document.querySelector('[data-tab="pack"]').classList.toggle("hidden", !sack);
     if (this.tab === "pack" && !sack) { this.showTab("bag"); return; }
 
     // The workbench tab exists only while you are standing at one.
-    const bench = this.game.nearestStation("craft");
+    const bench = this.game.stations.nearest("craft");
     document.querySelector('[data-tab="bench"]').classList.toggle("hidden", !bench);
     if (this.tab === "bench" && !bench) { this.showTab("craft"); return; }
 
-    const furnace = this.game.nearestStation("smelt");
+    const furnace = this.game.stations.nearest("smelt");
     document.querySelector('[data-tab="furnace"]').classList.toggle("hidden", !furnace);
     if (this.tab === "furnace" && !furnace) { this.showTab("craft"); return; }
 
-    const fire = this.game.nearestStation("cook");
+    const fire = this.game.stations.nearest("cook");
     document.querySelector('[data-tab="cook"]').classList.toggle("hidden", !fire);
     if (this.tab === "cook" && !fire) { this.showTab("craft"); return; }
 
@@ -458,7 +458,7 @@ export class UI {
       const cell = this._cell(entry, null);
       cell.dataset.slot = "chest:" + index;
       this.bindCell(cell,
-        entry ? () => { this.game.quickMove("chest:" + index); } : null,
+        entry ? () => { this.game.slots.quickMove("chest:" + index); } : null,
         entry ? () => this.showItemInfo(ITEMS[entry.id], { entry }) : null,
         "chest:" + index);
       grid.appendChild(cell);
@@ -471,7 +471,7 @@ export class UI {
       cell.dataset.slot = index;
       if (index < HOTBAR_SIZE) cell.insertAdjacentHTML("afterbegin", '<span class="key">' + (index + 1) + "</span>");
       this.bindCell(cell,
-        entry ? () => { this.game.quickMove(String(index)); } : null,
+        entry ? () => { this.game.slots.quickMove(String(index)); } : null,
         entry ? () => this.showItemInfo(ITEMS[entry.id], { entry }) : null,
         index);
       bagGrid.appendChild(cell);
@@ -487,7 +487,7 @@ export class UI {
       const cell = this._cell(entry, null);
       cell.dataset.slot = "pack:" + index;
       this.bindCell(cell,
-        entry ? () => { this.game.quickMove("pack:" + index, sack); this.refreshBackpack(); } : null,
+        entry ? () => { this.game.slots.quickMove("pack:" + index, sack); this.refreshBackpack(); } : null,
         entry ? () => this.showItemInfo(ITEMS[entry.id], { entry }) : null,
         "pack:" + index);
       grid.appendChild(cell);
@@ -500,7 +500,7 @@ export class UI {
       cell.dataset.slot = index;
       if (index < HOTBAR_SIZE) cell.insertAdjacentHTML("afterbegin", '<span class="key">' + (index + 1) + "</span>");
       this.bindCell(cell,
-        entry ? () => { this.game.quickMove(String(index), sack); this.refreshBackpack(); } : null,
+        entry ? () => { this.game.slots.quickMove(String(index), sack); this.refreshBackpack(); } : null,
         entry ? () => this.showItemInfo(ITEMS[entry.id], { entry, slot: index }) : null,
         index);
       bagGrid.appendChild(cell);
@@ -621,8 +621,8 @@ export class UI {
     head("Worn");
     row("Armour", armour ? armour.label : "none", !armour);
     row("Damage taken", Math.round((1 - eq.armor) * 100) + "%");
-    row("Move speed", (CONFIG.player.speed * eq.speedMul * (g.carrying ? CONFIG.core.carrySpeed : 1)).toFixed(1) +
-        (g.carrying ? " (carrying the core)" : ""));
+    row("Move speed", (CONFIG.player.speed * eq.speedMul * (g.core.carrying ? CONFIG.core.carrySpeed : 1)).toFixed(1) +
+        (g.core.carrying ? " (carrying the core)" : ""));
     if (armour && armour.durability) row("Condition", dur(eq.worn.armor));
 
     head("Body");
@@ -645,9 +645,9 @@ export class UI {
       this.bindCell(r, fn, null);
       list.appendChild(r);
     };
-    saveRow("Progress", g.hasSave() ? "stored" : "not stored yet", null);
-    saveRow("Save now", "save", () => { g.save(); this.refreshBackpack(); });
-    saveRow("Start over", "wipe", () => { g.wipeSave(); g.restart(); this.toggleBackpack(); });
+    saveRow("Progress", g.saves.has() ? "stored" : "not stored yet", null);
+    saveRow("Save now", "save", () => { g.saves.save(); this.refreshBackpack(); });
+    saveRow("Start over", "wipe", () => { g.saves.wipe(); g.restart(); this.toggleBackpack(); });
 
     head("This run");
     row("Day", g.cycle.day + (g.cycle.isNight ? " (night)" : ""));
@@ -684,7 +684,7 @@ export class UI {
 
     for (const { entry, where } of damaged) {
       const def = ITEMS[entry.id];
-      const price = this.game.repairPrice(entry);
+      const price = this.game.gear.repairPrice(entry);
       const row = document.createElement("div");
       const affordable = eco.canAfford(price);
       row.className = "recipe" + (affordable ? "" : " poor");
@@ -695,7 +695,7 @@ export class UI {
         "<span>" + (Object.keys(price).length ? costText(price) : "free") + "</span>";
       paintIcons(row);
       this.bindCell(row,
-        () => { if (this.game.repairGear(entry)) this.refreshBackpack(); },
+        () => { if (this.game.gear.repair(entry)) this.refreshBackpack(); },
         () => this.showItemInfo(def, { entry }));
       list.appendChild(row);
     }
@@ -718,7 +718,7 @@ export class UI {
     list.appendChild(head);
 
     for (const { entry, index, def } of rows) {
-      const parts = this.game.salvagePrice(entry);
+      const parts = this.game.gear.salvagePrice(entry);
       const row = document.createElement("div");
       row.className = "recipe";
       row.innerHTML =
@@ -728,7 +728,7 @@ export class UI {
         "</span><span>" + (Object.keys(parts).length ? "+" + costText(parts) : "nothing") + "</span>";
       paintIcons(row);
       this.bindCell(row,
-        () => { if (this.game.salvageGear(index)) this.refreshBackpack(); },
+        () => { if (this.game.gear.salvage(index)) this.refreshBackpack(); },
         () => this.showItemInfo(def, { entry, slot: index }));
       list.appendChild(row);
     }

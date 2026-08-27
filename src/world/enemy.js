@@ -1,3 +1,4 @@
+import { resolveMove, blocked } from "../core/collision.js";
 import { CELL_STRUCT, CELL_TRAP } from "../core/grid.js";
 import { clamp, lerpAngle, costText } from "../core/util.js";
 import { CONFIG } from "../data/config.js";
@@ -115,7 +116,7 @@ export class Enemy extends Entity {
           // The field already priced breaking in below walking around.
           this._face(fx, fy, dt);
           if (grid.damageStructure(ni, this.type.dpsVsStructure * dt)) game.build.destroy(ni);
-          game.spawnChips(grid.centerX(cx + fx), 0.8, grid.centerZ(cy + fy), 1, 0xd9b678);
+          game.fx.spawnChips(grid.centerX(cx + fx), 0.8, grid.centerZ(cy + fy), 1, 0xd9b678);
           return;
         }
         dirX = grid.centerX(cx + fx) - this.position.x;
@@ -184,7 +185,7 @@ export class Enemy extends Entity {
     if (this.dead) return;
     this.dead = true;
     if (this.bar) { this.game.bars.destroy(this.bar); this.bar = null; }
-    this.game.playCollapse(this.object);
+    this.game.fx.playCollapse(this.object);
     this.leaving = true;
   }
 
@@ -199,13 +200,13 @@ export class Enemy extends Entity {
     const beforeX = this.position.x, beforeZ = this.position.z;
     const wantX = this.position.x + dirX * speed * dt;
     const wantZ = this.position.z + dirZ * speed * dt;
-    this.game.resolveMove(this.position, wantX, wantZ, this.type.radius, false);
+    resolveMove(this.game.grid, this.position, wantX, wantZ, this.type.radius, false);
 
     const moved = Math.hypot(this.position.x - beforeX, this.position.z - beforeZ);
     // Only geometry counts as being stuck. Being jostled by the crowd in a
     // corridor is not a reason to start eating the wall - and once one body
     // started chewing, standing still kept proving itself stuck for ever.
-    const walled = this.game._blocked(wantX, wantZ, this.type.radius, false);
+    const walled = blocked(this.game.grid, wantX, wantZ, this.type.radius, false);
     if (moved < speed * dt * 0.4 && walled) this.stuck += dt;
     else this.stuck = Math.max(0, this.stuck - dt * 3);
     this._face(dirX, dirZ, dt);
@@ -239,7 +240,7 @@ export class Enemy extends Entity {
       this.game.build.destroy(best);
       this.stuck = 0;
     }
-    this.game.spawnChips(g.centerX(bx), 0.8, g.centerZ(by), 1, 0xd9b678);
+    this.game.fx.spawnChips(g.centerX(bx), 0.8, g.centerZ(by), 1, 0xd9b678);
     return true;
   }
 
@@ -257,7 +258,7 @@ export class Enemy extends Entity {
         const gained = {}, spilled = {};
         for (const id in this.type.drops) {
           const want = this.type.drops[id];
-          const took = this.game.giveOrDrop(id, want, this.position.x, this.position.z);
+          const took = this.game.packs.giveOrDrop(id, want, this.position.x, this.position.z);
           if (took > 0) gained[id] = took;
           if (want > took) spilled[id] = want - took;
         }
@@ -266,7 +267,7 @@ export class Enemy extends Entity {
         this.game.ui.toast([a, b].filter(Boolean).join(", "));
       } else this.game.stats.kills++;
       // No loot from corpses by design: resources come from the world only.
-      this.game.spawnChips(this.position.x, 0.9, this.position.z, 6, 0xb5563f);
+      this.game.fx.spawnChips(this.position.x, 0.9, this.position.z, 6, 0xb5563f);
     }
   }
 }

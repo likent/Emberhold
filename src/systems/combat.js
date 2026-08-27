@@ -36,7 +36,7 @@ export class CombatSystem {
         n.takeDamage(equip.damage * mul);
       }
     }
-    this.game.slashFx(player);
+    this.game.fx.slash(player);
   }
 
   separation(self, radius) {
