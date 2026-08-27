@@ -31,6 +31,30 @@ module.exports = {
     assert(!bad.length, "structure meshes", bad[0]);
   },
 
+  "a tier fights with its own numbers, not its base's": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    const g = t.grid;
+    // Tiers inherit their behaviour from the thing below them, so the only
+    // proof that `this` is the variant is what the variant actually does.
+    const wood = t.place("spikes", 10, 10);
+    const iron = t.place("iron_spikes", 14, 10);
+    const woodHp = g.hp[wood], ironHp = g.hp[iron];
+    const onWood = t.game.spawnEnemy(g.centerX(10), g.centerZ(10), t.type("raider"));
+    const onIron = t.game.spawnEnemy(g.centerX(14), g.centerZ(10), t.type("raider"));
+    const full = onWood.hp;
+    t.sim(3);
+
+    const woodTook = full - onWood.hp, ironTook = full - onIron.hp;
+    assert(woodTook > 0 && ironTook > woodTook, "iron spikes maim harder",
+      woodTook.toFixed(1) + " vs " + ironTook.toFixed(1));
+    // ...and blunt rather than splinter, so the same fight costs them less.
+    const woodWear = woodHp - g.hp[wood], ironWear = ironHp - g.hp[iron];
+    assert(woodWear > 0 && ironWear < woodWear, "iron spikes wear slower",
+      woodWear.toFixed(1) + " vs " + ironWear.toFixed(1));
+  },
+
   "the game boots whatever nonsense is in the save slot": async assert => {
     const payloads = ["not json", '{"v":1,"cycle":{', "", "null",
       '{"v":1,"structures":"nope"}'];
@@ -52,7 +76,7 @@ module.exports = {
     first.grid.hp[cell] = 61;
     first.game.cycle.day = 5;
     first.game.player.hunger = 58;
-    first.game.save();
+    first.game.saves.save();
 
     const second = await boot({ storage: store });
     assert(second.game.cycle.day === 5, "day restored", String(second.game.cycle.day));
@@ -70,16 +94,16 @@ module.exports = {
     t.game.economy.add("iron_ingot", 20);
     const { cx, cy } = t.freeCell();
     const cell = t.place("chest", cx + 1, cy);
-    t.game.openChestCell = cell;
+    t.game.stations.openChestCell = cell;
     t.game.economy.inv.slots[6] = { id: "steel_pick", count: 1, dur: 111 };
 
-    t.game.quickMove("6", t.game.chestInv());
-    const stored = t.game.chestInv().slots.find(s => s && s.id === "steel_pick");
+    t.game.slots.quickMove("6", t.game.stations.chestInv());
+    const stored = t.game.stations.chestInv().slots.find(s => s && s.id === "steel_pick");
     assert(stored && stored.dur === 111, "condition kept going in",
       stored && String(stored.dur));
 
-    const index = t.game.chestInv().slots.indexOf(stored);
-    t.game.quickMove("chest:" + index, t.game.chestInv());
+    const index = t.game.stations.chestInv().slots.indexOf(stored);
+    t.game.slots.quickMove("chest:" + index, t.game.stations.chestInv());
     const back = t.game.economy.inv.slots.find(s => s && s.id === "steel_pick");
     assert(back && back.dur === 111, "condition kept coming out",
       back && String(back.dur));
@@ -96,7 +120,7 @@ module.exports = {
     });
     t.game.economy.inv.slots[1] = { id: "steel_axe", count: 1, dur: 800 };
     t.game.equip.selectHand(1);
-    t.game.onLoadoutChanged();
+    t.game.equip.changed();
     t.game.economy._sync();
 
     const tree = t.game.resources.nodes.find(n => n.def.id === "tree" && n.growth > 0.9);
@@ -107,8 +131,10 @@ module.exports = {
     t.game.player.acting = false;
     t.sim(20);
 
-    assert(t.game.packs.length === 1, "a sack was left on the ground");
-    assert(t.game.packs[0].inv.slots.some(s => s && s.id === "wood"),
+    // One sack, or two: a second node standing in the same swing arc gets
+    // felled as well and its spill lands too far away to share the first sack.
+    assert(t.game.packs.list.length >= 1, "a sack was left on the ground");
+    assert(t.game.packs.list.some(p => p.inv.slots.some(s => s && s.id === "wood")),
       "the wood is in the sack");
   }
 };

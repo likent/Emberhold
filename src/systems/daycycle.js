@@ -60,7 +60,7 @@ export class DayCycle {
     const light = this.daylight();
     if (Math.abs(light - this.lastLight) < 0.01) return;
     this.lastLight = light;
-    this.game.applySkyBlend(light);
+    this.game.scenery.applySkyBlend(light);
   }
 
   isBigRaid() { return this.day % CONFIG.cycle.bigRaidEvery === 0; }
@@ -99,7 +99,7 @@ export class DayCycle {
     for (const e of this.game.enemies) seen[e.type.label] = (seen[e.type.label] || 0) + 1;
     this.game.ui.toast((big ? "BLOOD RAID - night " : "Raid - night ") + this.day + ": " +
       Object.keys(seen).map(k => seen[k] + " " + k).join(", "));
-    this.game.shake(big ? 0.8 : 0.4);
+    this.game.rig.kick(big ? 0.8 : 0.4);
   }
 
   /** Big nights always bring the heavy classes, whatever the day table says. */

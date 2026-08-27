@@ -92,6 +92,21 @@ async function boot(opts = {}) {
       return api.grid.idx(cx, cy);
     },
 
+    /**
+     * A tap on the world itself. The stubbed renderer never runs the matrix
+     * update a real frame would, so the raycast behind the tap needs it done
+     * by hand first.
+     */
+    worldTap(x, y) {
+      api.scene.updateMatrixWorld(true);
+      api.camera.updateMatrixWorld(true);
+      for (const type of ["pointerdown", "pointerup"]) {
+        const e = new w.Event(type, { bubbles: true, cancelable: true });
+        e.pointerId = 7; e.clientX = x; e.clientY = y;
+        $("view").dispatchEvent(e);
+      }
+    },
+
     /** A cell with nothing on it and no resource node, near the given start. */
     freeCell(cx = 18, cy = 18) {
       const g = api.grid;
@@ -106,7 +121,7 @@ async function boot(opts = {}) {
       api.enemies.length = 0;
     },
 
-    type(id) { return api.fields[id].type; }
+    type(id) { return api.paths.fields[id].type; }
   };
 }
 

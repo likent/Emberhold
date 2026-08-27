@@ -3,6 +3,71 @@ import { clamp, lerpAngle } from "../core/util.js";
 import { CONFIG } from "./config.js";
 import { MATS, GEO } from "./materials.js";
 
+/**
+ * A higher tier of something that already stands: the same shape and the same
+ * rules, different numbers and a better metal. Everything the variant does not
+ * name is inherited - `build()` and the behaviour hooks included - and because
+ * those are plain properties, `this` inside them is the variant, so they read
+ * the new numbers without knowing they were inherited.
+ */
+function variantOf(base, overrides) {
+  const def = Object.assign({}, base, overrides);
+  // The id is what the save file stores and the item is what it spends, so a
+  // variant that inherited either would quietly be its own base.
+  if (def.id === base.id) throw new Error("variant of " + base.id + " needs its own id");
+  if (base.item && def.item === base.item) throw new Error(def.id + " needs its own item");
+  return def;
+}
+
+/** The cheapest kind of tier: the same mesh cast in a better metal. */
+function recolour(group, mat, only) {
+  group.traverse(o => { if (o.isMesh && (!only || o.material === only)) o.material = mat; });
+  return group;
+}
+
+/** Stone, iron and steel are one run of arms and posts in three metals. */
+function wallRun(mask, mat, armY, postY) {
+  const g = new THREE.Group();
+  addArms(g, mask, GEO.stoneArm, GEO.stonePost, GEO.stoneBrace, mat, armY, postY);
+  return g;
+}
+
+/** Five spikes in a ring, jittered so no two placements look stamped out. */
+function spikeRing(mat, y, scale, jitter) {
+  const g = new THREE.Group();
+  for (let n = 0; n < 5; n++) {
+    const spike = new THREE.Mesh(GEO.spike, mat);
+    const a = (n / 5) * Math.PI * 2;
+    spike.position.set(Math.cos(a) * 0.45, y, Math.sin(a) * 0.45);
+    spike.scale.setScalar(scale);
+    spike.rotation.set((Math.random() - 0.5) * jitter, 0, (Math.random() - 0.5) * jitter);
+    spike.castShadow = true;
+    g.add(spike);
+  }
+  return g;
+}
+
+/**
+ * Two posts, a lintel and a plank. A gate takes its facing from the walls it
+ * meets; with nothing to go on it keeps the orientation it was placed with.
+ */
+function gateFrame(mask, meta, mat, postY, barY, plankY) {
+  const g = new THREE.Group();
+  const half = CONFIG.grid.cell / 2 - 0.16;
+  const left = new THREE.Mesh(GEO.gatePost, mat);
+  left.position.set(-half, postY, 0);
+  const right = left.clone(); right.position.x = half;
+  const bar = new THREE.Mesh(GEO.gateBar, mat);
+  bar.position.y = barY;
+  const plank = new THREE.Mesh(GEO.gatePlank, mat);
+  plank.position.y = plankY;
+  [left, right, bar, plank].forEach(m => { m.castShadow = true; });
+  g.add(left, right, bar, plank);
+  const auto = gateOrientation(mask);
+  g.rotation.y = auto !== null ? auto : (meta ? meta.orient : 0);
+  return g;
+}
+
 /** Buildable structures. Everything the base needs is described here. */
 export const STRUCTURES = {
   fence: {
@@ -31,11 +96,7 @@ export const STRUCTURES = {
     height: 2.1,
     blocksPlayer: true,
     connect: "wall",
-    build(mask) {
-      const g = new THREE.Group();
-      addArms(g, mask, GEO.stoneArm, GEO.stonePost, GEO.stoneBrace, MATS.stone, 1.05, 1.1);
-      return g;
-    }
+    build(mask) { return wallRun(mask, MATS.stone, 1.05, 1.1); }
   },
   /* The objective. Enemies path to it, it cannot be built or demolished, and
    * losing it ends the run. Mechanically it is an ordinary structure, which is
@@ -107,7 +168,7 @@ export const STRUCTURES = {
       head.rotation.y = lerpAngle(head.rotation.y, Math.atan2(dx, dz), clamp(6 * dt, 0, 1));
       if (s.cd <= 0) {
         s.cd = this.fireCooldown;
-        ctx.game.spawnBolt(ctx.mesh.position.x, 1.35, ctx.mesh.position.z, target, this.damage);
+        ctx.game.fx.spawnBolt(ctx.mesh.position.x, 1.35, ctx.mesh.position.z, target, this.damage);
       }
     }
   },
@@ -126,22 +187,12 @@ export const STRUCTURES = {
     trap: true,
     pathCost: 2.2,         // plainly visible, so it is routed around when cheap
     dps: 30,
-    build() {
-      const g = new THREE.Group();
-      for (let n = 0; n < 5; n++) {
-        const spike = new THREE.Mesh(GEO.spike, MATS.wood);
-        const a = (n / 5) * Math.PI * 2;
-        spike.position.set(Math.cos(a) * 0.45, 0.35, Math.sin(a) * 0.45);
-        spike.rotation.set((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3);
-        spike.castShadow = true;
-        g.add(spike);
-      }
-      return g;
-    },
+    wear: 1,               // wood splinters as fast as it maims
+    build() { return spikeRing(MATS.wood, 0.35, 1, 0.3); },
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.dps * dt);
-      if (game.grid.damageStructure(i, this.dps * dt)) game.build.destroy(i);
-      if (Math.random() < dt * 6) game.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
+      if (game.grid.damageStructure(i, this.dps * dt * this.wear)) game.build.destroy(i);
+      if (Math.random() < dt * 6) game.fx.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
     }
   },
 
@@ -171,7 +222,7 @@ export const STRUCTURES = {
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.damage);
       enemy.rooted = this.rootTime;
-      game.spawnChips(enemy.position.x, 0.5, enemy.position.z, 6, 0xb5563f);
+      game.fx.spawnChips(enemy.position.x, 0.5, enemy.position.z, 6, 0xb5563f);
       game.build.destroy(i);
     }
   },
@@ -373,144 +424,7 @@ export const STRUCTURES = {
     },
     onEnemy(dt, enemy, i, game) {
       enemy.takeDamage(this.dps * dt);
-      if (Math.random() < dt * 4) game.spawnChips(enemy.position.x, 0.7, enemy.position.z, 1, 0xffb257);
-    }
-  },
-
-  workbench2: {
-    id: "workbench2",
-    category: "station",
-    label: "Reinforced bench",
-    cost: { wood: 30, stone: 20, steel_ingot: 4 },
-    refund: { wood: 12, stone: 8, steel_ingot: 2 },
-    hp: 340,
-    height: 1.2,
-    blocksPlayer: true,
-    station: "craft",
-    tier: 2,
-    build() {
-      const g = new THREE.Group();
-      const top = new THREE.Mesh(GEO.benchTop, MATS.wood);
-      top.position.y = 1.0; top.castShadow = true; top.receiveShadow = true;
-      g.add(top);
-      for (const [dx, dz] of [[-0.62, -0.42], [0.62, -0.42], [-0.62, 0.42], [0.62, 0.42]]) {
-        const leg = new THREE.Mesh(GEO.benchLeg, MATS.steel);
-        leg.position.set(dx, 0.48, dz); leg.castShadow = true;
-        g.add(leg);
-      }
-      const vice = new THREE.Mesh(GEO.benchVice, MATS.steel);
-      vice.position.set(0.45, 1.17, 0); vice.castShadow = true;
-      const anvil = new THREE.Mesh(GEO.benchVice, MATS.iron);
-      anvil.position.set(-0.4, 1.15, 0); anvil.scale.set(1.4, 1.2, 1.6); anvil.castShadow = true;
-      g.add(vice, anvil);
-      return g;
-    }
-  },
-
-  coal_torch: {
-    id: "coal_torch",
-    item: "coal_torch",
-    label: "Coal torch",
-    cost: { wood: 2, coal: 1 },
-    hp: 900,
-    height: 1.6,
-    trap: true,
-    pathCost: 0,
-    noBar: true,
-    burnRate: 1,
-    build() { return STRUCTURES.torch.build(); },
-    onUpdate(dt, ctx) { STRUCTURES.torch.onUpdate.call(this, dt, ctx); }
-  },
-
-  iron_spikes: {
-    id: "iron_spikes",
-    item: "iron_spikes",
-    label: "Iron spikes",
-    cost: { stone: 4, iron_ingot: 2 },
-    refund: { stone: 1 },
-    hp: 700,
-    height: 0.8,
-    trap: true,
-    pathCost: 3.4,
-    dps: 68,
-    build() {
-      const g = new THREE.Group();
-      for (let n = 0; n < 5; n++) {
-        const spike = new THREE.Mesh(GEO.spike, MATS.iron);
-        const a = (n / 5) * Math.PI * 2;
-        spike.position.set(Math.cos(a) * 0.45, 0.4, Math.sin(a) * 0.45);
-        spike.scale.setScalar(1.15);
-        spike.rotation.set((Math.random() - 0.5) * 0.25, 0, (Math.random() - 0.5) * 0.25);
-        spike.castShadow = true;
-        g.add(spike);
-      }
-      return g;
-    },
-    onEnemy(dt, enemy, i, game) {
-      enemy.takeDamage(this.dps * dt);
-      if (game.grid.damageStructure(i, this.dps * dt * 0.35)) game.build.destroy(i);
-      if (Math.random() < dt * 6) game.spawnChips(enemy.position.x, 0.4, enemy.position.z, 1, 0xb5563f);
-    }
-  },
-
-  steel_ballista: {
-    id: "steel_ballista",
-    item: "steel_ballista",
-    label: "Steel ballista",
-    cost: { steel_ingot: 6, rope: 3 },
-    refund: { steel_ingot: 3, rope: 1 },
-    hp: 520,
-    height: 2.2,
-    blocksPlayer: true,
-    range: 13.5,
-    damage: 58,
-    fireCooldown: 1.05,
-    build() {
-      const g = STRUCTURES.ballista.build();
-      g.traverse(o => { if (o.isMesh) o.material = MATS.steel; });
-      return g;
-    },
-    onUpdate(dt, ctx) { STRUCTURES.ballista.onUpdate.call(this, dt, ctx); }
-  },
-
-  blast_furnace: {
-    id: "blast_furnace",
-    category: "station",
-    label: "Blast furnace",
-    cost: { stone: 50, iron_ingot: 6 },
-    refund: { stone: 20, iron_ingot: 3 },
-    hp: 420,
-    height: 2.1,
-    blocksPlayer: true,
-    station: "smelt",
-    tier: 2,
-    craftSpeed: 2,
-    build() {
-      const g = STRUCTURES.furnace.build();
-      g.scale.setScalar(1.18);
-      const band = new THREE.Mesh(GEO.chestBand, MATS.iron);
-      band.position.y = 1.05; band.castShadow = true;
-      g.add(band);
-      return g;
-    },
-    onUpdate(dt, ctx) { STRUCTURES.furnace.onUpdate.call(this, dt, ctx); }
-  },
-
-  iron_chest: {
-    id: "iron_chest",
-    category: "station",
-    label: "Iron chest",
-    cost: { wood: 20, iron_ingot: 6 },
-    refund: { wood: 8, iron_ingot: 3 },
-    hp: 480,
-    height: 1.0,
-    blocksPlayer: true,
-    station: "storage",
-    slots: 48,
-    build() {
-      const g = STRUCTURES.chest.build();
-      g.traverse(o => { if (o.isMesh && o.material === MATS.wood) o.material = MATS.iron; });
-      return g;
+      if (Math.random() < dt * 4) game.fx.spawnChips(enemy.position.x, 0.7, enemy.position.z, 1, 0xffb257);
     }
   },
 
@@ -537,68 +451,6 @@ export const STRUCTURES = {
     }
   },
 
-  iron_wall: {
-    id: "iron_wall",
-    label: "Iron wall",
-    category: "wall",
-    cost: { stone: 6, iron_ingot: 3 },
-    refund: { stone: 2, iron_ingot: 1 },
-    hp: 2200,
-    height: 2.2,
-    blocksPlayer: true,
-    connect: "wall",
-    build(mask) {
-      const g = new THREE.Group();
-      addArms(g, mask, GEO.stoneArm, GEO.stonePost, GEO.stoneBrace, MATS.iron, 1.1, 1.15);
-      return g;
-    }
-  },
-
-  steel_wall: {
-    id: "steel_wall",
-    label: "Steel wall",
-    category: "wall",
-    cost: { stone: 6, steel_ingot: 3 },
-    refund: { stone: 2, steel_ingot: 1 },
-    hp: 5200,
-    height: 2.3,
-    blocksPlayer: true,
-    connect: "wall",
-    build(mask) {
-      const g = new THREE.Group();
-      addArms(g, mask, GEO.stoneArm, GEO.stonePost, GEO.stoneBrace, MATS.steel, 1.15, 1.2);
-      return g;
-    }
-  },
-
-  iron_gate: {
-    id: "iron_gate",
-    label: "Iron gate",
-    category: "gate",
-    cost: { iron_ingot: 4, rope: 2 },
-    refund: { iron_ingot: 2 },
-    hp: 1600,
-    height: 1.9,
-    blocksPlayer: false,
-    connect: "wall",
-    build(mask, meta) {
-      const g = new THREE.Group();
-      const half = CONFIG.grid.cell / 2 - 0.16;
-      const left = new THREE.Mesh(GEO.gatePost, MATS.iron);
-      left.position.set(-half, 0.95, 0);
-      const right = left.clone(); right.position.x = half;
-      const bar = new THREE.Mesh(GEO.gateBar, MATS.iron);
-      bar.position.y = 1.7;
-      const plank = new THREE.Mesh(GEO.gatePlank, MATS.iron);
-      plank.position.y = 0.66;
-      [left, right, bar, plank].forEach(m => { m.castShadow = true; });
-      g.add(left, right, bar, plank);
-      const auto = gateOrientation(mask);
-      g.rotation.y = auto !== null ? auto : (meta ? meta.orient : 0);
-      return g;
-    }
-  },
-
   gate: {
     id: "gate",
     category: "gate",
@@ -609,22 +461,134 @@ export const STRUCTURES = {
     height: 1.8,
     blocksPlayer: false,   // you walk through it, the enemies have to chew it
     connect: "wall",
-    build(mask, meta) {
-      const g = new THREE.Group();
-      const half = CONFIG.grid.cell / 2 - 0.16;
-      const left = new THREE.Mesh(GEO.gatePost, MATS.wood);
-      left.position.set(-half, 0.9, 0);
-      const right = left.clone(); right.position.x = half;
-      const bar = new THREE.Mesh(GEO.gateBar, MATS.wood);
-      bar.position.y = 1.62;
-      const plank = new THREE.Mesh(GEO.gatePlank, MATS.wood);
-      plank.position.y = 0.62;
-      left.castShadow = true; right.castShadow = true;
-      bar.castShadow = true; plank.castShadow = true;
-      g.add(left, right, bar, plank);
-      const auto = gateOrientation(mask);
-      g.rotation.y = auto !== null ? auto : (meta ? meta.orient : 0);
-      return g;
-    }
+    build(mask, meta) { return gateFrame(mask, meta, MATS.wood, 0.9, 1.62, 0.62); }
   }
 };
+
+/* ---- tiers --------------------------------------------------------------
+ * The upgrade of each thing above, in the order you meet it. A tier is its
+ * base with better numbers, so only the numbers are written out; anything
+ * that needs a mesh of its own says so and nothing else changes. */
+
+Object.assign(STRUCTURES, {
+  iron_wall: variantOf(STRUCTURES.stone_wall, {
+    id: "iron_wall",
+    label: "Iron wall",
+    cost: { stone: 6, iron_ingot: 3 },
+    refund: { stone: 2, iron_ingot: 1 },
+    hp: 2200,
+    height: 2.2,
+    build(mask) { return wallRun(mask, MATS.iron, 1.1, 1.15); }
+  }),
+
+  steel_wall: variantOf(STRUCTURES.stone_wall, {
+    id: "steel_wall",
+    label: "Steel wall",
+    cost: { stone: 6, steel_ingot: 3 },
+    refund: { stone: 2, steel_ingot: 1 },
+    hp: 5200,
+    height: 2.3,
+    build(mask) { return wallRun(mask, MATS.steel, 1.15, 1.2); }
+  }),
+
+  iron_gate: variantOf(STRUCTURES.gate, {
+    id: "iron_gate",
+    label: "Iron gate",
+    cost: { iron_ingot: 4, rope: 2 },
+    refund: { iron_ingot: 2 },
+    hp: 1600,
+    height: 1.9,
+    build(mask, meta) { return gateFrame(mask, meta, MATS.iron, 0.95, 1.7, 0.66); }
+  }),
+
+  iron_spikes: variantOf(STRUCTURES.spikes, {
+    id: "iron_spikes",
+    item: "iron_spikes",
+    label: "Iron spikes",
+    cost: { stone: 4, iron_ingot: 2 },
+    refund: { stone: 1 },
+    hp: 700,
+    height: 0.8,
+    pathCost: 3.4,
+    dps: 68,
+    wear: 0.35,            // iron blunts; it does not splinter
+    build() { return spikeRing(MATS.iron, 0.4, 1.15, 0.25); }
+  }),
+
+  coal_torch: variantOf(STRUCTURES.torch, {
+    id: "coal_torch",
+    item: "coal_torch",
+    label: "Coal torch",
+    cost: { wood: 2, coal: 1 },
+    hp: 900                // three times the fuel, same flame
+  }),
+
+  workbench2: variantOf(STRUCTURES.workbench, {
+    id: "workbench2",
+    label: "Reinforced bench",
+    cost: { wood: 30, stone: 20, steel_ingot: 4 },
+    refund: { wood: 12, stone: 8, steel_ingot: 2 },
+    hp: 340,
+    tier: 2,
+    build() {
+      const g = new THREE.Group();
+      const top = new THREE.Mesh(GEO.benchTop, MATS.wood);
+      top.position.y = 1.0; top.castShadow = true; top.receiveShadow = true;
+      g.add(top);
+      for (const [dx, dz] of [[-0.62, -0.42], [0.62, -0.42], [-0.62, 0.42], [0.62, 0.42]]) {
+        const leg = new THREE.Mesh(GEO.benchLeg, MATS.steel);
+        leg.position.set(dx, 0.48, dz); leg.castShadow = true;
+        g.add(leg);
+      }
+      const vice = new THREE.Mesh(GEO.benchVice, MATS.steel);
+      vice.position.set(0.45, 1.17, 0); vice.castShadow = true;
+      const anvil = new THREE.Mesh(GEO.benchVice, MATS.iron);
+      anvil.position.set(-0.4, 1.15, 0); anvil.scale.set(1.4, 1.2, 1.6); anvil.castShadow = true;
+      g.add(vice, anvil);
+      return g;
+    }
+  }),
+
+  blast_furnace: variantOf(STRUCTURES.furnace, {
+    id: "blast_furnace",
+    label: "Blast furnace",
+    cost: { stone: 50, iron_ingot: 6 },
+    refund: { stone: 20, iron_ingot: 3 },
+    hp: 420,
+    height: 2.1,
+    tier: 2,
+    craftSpeed: 2,
+    build() {
+      const g = STRUCTURES.furnace.build();
+      g.scale.setScalar(1.18);
+      const band = new THREE.Mesh(GEO.chestBand, MATS.iron);
+      band.position.y = 1.05; band.castShadow = true;
+      g.add(band);
+      return g;
+    }
+  }),
+
+  iron_chest: variantOf(STRUCTURES.chest, {
+    id: "iron_chest",
+    label: "Iron chest",
+    cost: { wood: 20, iron_ingot: 6 },
+    refund: { wood: 8, iron_ingot: 3 },
+    hp: 480,
+    slots: 48,
+    build() { return recolour(STRUCTURES.chest.build(), MATS.iron, MATS.wood); }
+  }),
+
+  steel_ballista: variantOf(STRUCTURES.ballista, {
+    id: "steel_ballista",
+    item: "steel_ballista",
+    label: "Steel ballista",
+    cost: { steel_ingot: 6, rope: 3 },
+    refund: { steel_ingot: 3, rope: 1 },
+    hp: 520,
+    height: 2.2,
+    range: 13.5,
+    damage: 58,
+    fireCooldown: 1.05,
+    build() { return recolour(STRUCTURES.ballista.build(), MATS.steel); }
+  })
+});

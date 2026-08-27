@@ -1,3 +1,4 @@
+import { resolveMove } from "../core/collision.js";
 import { clamp, lerpAngle } from "../core/util.js";
 import { CONFIG } from "../data/config.js";
 import { ITEMS } from "../data/items.js";
@@ -110,9 +111,9 @@ export class Player extends Entity {
     if (!this.moving) return;
     dirX /= len; dirZ /= len;
     const speed = CONFIG.player.speed * this.game.equip.speedMul
-                  * (this.game.carrying ? CONFIG.core.carrySpeed : 1);
-    this.game.resolveMove(
-      this.position,
+                  * (this.game.core.carrying ? CONFIG.core.carrySpeed : 1);
+    resolveMove(
+      this.game.grid, this.position,
       this.position.x + dirX * speed * dt,
       this.position.z + dirZ * speed * dt,
       CONFIG.player.radius, true
@@ -183,7 +184,7 @@ export class Player extends Entity {
         this.game.economy.inv.slots[this.game.equip.hand] = null;
         this.game.ui.toast("Your last torch burnt out");
         this.game.economy._sync();
-        this.game.onLoadoutChanged();
+        this.game.equip.changed();
         return;
       }
       this.torchFuel = item.burnTime;
@@ -227,7 +228,7 @@ export class Player extends Entity {
     entry.count--;
     if (entry.count <= 0) this.game.economy.inv.slots[this.game.equip.hand] = null;
     this.game.economy._sync();
-    this.game.onLoadoutChanged();
+    this.game.equip.changed();
     this.swingT = 0;
     return true;
   }
@@ -263,7 +264,7 @@ export class Player extends Entity {
 
     this.attackCd = spec.cooldown;
     this.game.economy.spend({ arrow: 1 });
-    this.game.spawnBolt(this.position.x, 1.25, this.position.z, target, spec.damage);
+    this.game.fx.spawnBolt(this.position.x, 1.25, this.position.z, target, spec.damage);
     this.game.equip.wearHand(1);
     this.swingT = 0;
     return true;
@@ -286,34 +287,34 @@ export class Player extends Entity {
   }
 
   takeDamage(amount) {
-    if (this.game.sandbox || this.downed) { this.game.shake(0.12); return; }
+    if (this.game.sandbox || this.downed) { this.game.rig.kick(0.12); return; }
     const soaked = amount * this.game.equip.armor;
     this.game.equip.wearArmor(soaked / 4);
     this.hp -= amount - soaked;
     this.game.ui.setHp(this.hp / CONFIG.player.maxHp);
-    this.game.shake(0.22);
+    this.game.rig.kick(0.22);
     if (this.hp <= 0) this._down();
   }
 
   /** Going down is a setback, not a loss of the run - but it costs the pack. */
   _down() {
     this.game.stats.deaths++;
-    if (this.game.carrying) {
-      this.game.dropCoreNear(this.position.x, this.position.z);
+    if (this.game.core.carrying) {
+      this.game.core.dropNear(this.position.x, this.position.z);
       this.game.ui.toast("You dropped the core");
     }
-    this.game.dropPack(this.position.x, this.position.z);
+    this.game.packs.dropCarried(this.position.x, this.position.z);
     this.downed = true;
     this.respawnT = CONFIG.respawn.delay;
     this.object.visible = false;
     this.hp = 0;
     this.game.ui.setHp(0);
-    this.game.shake(0.7);
-    this.game.spawnChips(this.position.x, 1, this.position.z, 10, 0x9fbcd0);
+    this.game.rig.kick(0.7);
+    this.game.fx.spawnChips(this.position.x, 1, this.position.z, 10, 0x9fbcd0);
   }
 
   _respawn() {
-    const spot = this.game.corePosition();
+    const spot = this.game.core.position();
     this.position.set(spot.x, 0, spot.z + CONFIG.grid.cell);
     this.hp = CONFIG.player.maxHp;
     this.hunger = Math.max(this.hunger, CONFIG.hunger.max * 0.35);

@@ -12,6 +12,17 @@ export class Equipment {
   }
   reset() { this.worn.armor = null; this.hand = 0; }
 
+  /**
+   * Called whenever what is worn or held changes, so the visible weapon, the
+   * action icon and the armed deployable all match the hand again.
+   */
+  changed() {
+    if (this.game.player) this.game.player.refreshWeaponMesh();
+    this.game.panel.refresh();
+    this.game.ui.setActionIcon(this.handItem());
+    this.game.build.syncSelection();
+  }
+
   handEntry() { return this.game.economy.inv.slots[this.hand]; }
   handItem() {
     const e = this.handEntry();
@@ -48,7 +59,7 @@ export class Equipment {
   selectHand(i) {
     if (i < 0 || i >= HOTBAR_SIZE) return;
     this.hand = i;
-    this.game.onLoadoutChanged();     // fires even on a re-tap, to resync the UI
+    this.changed();     // fires even on a re-tap, to resync the UI
   }
 
   /** Bag tap: armour goes on the body, anything else into the active hand slot. */
@@ -59,7 +70,7 @@ export class Equipment {
     const def = ITEMS[entry.id];
     if (def.slot === "armor") return this.equipArmor(index);
     inv.swap(index, this.hand);
-    this.game.onLoadoutChanged();
+    this.changed();
     return true;
   }
 
@@ -70,7 +81,7 @@ export class Equipment {
     const previous = this.worn.armor;
     inv.slots[index] = previous || null;      // straight swap keeps durability
     this.worn.armor = entry;
-    this.game.onLoadoutChanged();
+    this.changed();
     return true;
   }
 
@@ -83,7 +94,7 @@ export class Equipment {
     if (target < 0) { this.game.ui.toast("Backpack full"); return false; }
     this.worn[slot] = null;
     inv.slots[target] = entry;
-    this.game.onLoadoutChanged();
+    this.changed();
     return true;
   }
 
@@ -98,9 +109,9 @@ export class Equipment {
     if (entry.dur <= 0) {
       this.game.economy.inv.slots[this.hand] = null;
       this.game.ui.toast(ITEMS[entry.id].label + " broke");
-      this.game.onLoadoutChanged();
+      this.changed();
     } else {
-      this.game.ui.refreshHotbar();
+      this.game.panel.refreshHotbar();
     }
   }
 
@@ -111,7 +122,7 @@ export class Equipment {
     if (entry.dur <= 0) {
       this.worn.armor = null;
       this.game.ui.toast(ITEMS[entry.id].label + " fell apart");
-      this.game.onLoadoutChanged();
+      this.changed();
     }
   }
 }

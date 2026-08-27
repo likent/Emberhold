@@ -74,12 +74,28 @@ export class InputSystem {
       const c = this.tapCandidate;
       if (c) {
         const moved = Math.hypot(e.clientX - c.x, e.clientY - c.y);
-        if (moved < 12 && performance.now() - c.t < 350) this.game.onWorldTap(e.clientX, e.clientY);
+        if (moved < 12 && performance.now() - c.t < 350) this._worldTap(e.clientX, e.clientY);
         this.tapCandidate = null;
       }
     };
     this.canvas.addEventListener("pointerup", end);
     this.canvas.addEventListener("pointercancel", end);
+  }
+
+  /**
+   * A tap on the world places where you pointed rather than where you stand.
+   * Only in build mode: outside it a tap is just a look that went nowhere.
+   */
+  _worldTap(clientX, clientY) {
+    if (!this.game.build.active) return;
+    if (!this._ray) { this._ray = new THREE.Raycaster(); this._ndc = new THREE.Vector2(); }
+    this._ndc.x = (clientX / innerWidth) * 2 - 1;
+    this._ndc.y = -(clientY / innerHeight) * 2 + 1;
+    this._ray.setFromCamera(this._ndc, this.game.camera);
+    const hit = this._ray.intersectObject(this.game.scenery.ground)[0];
+    if (!hit) return;
+    this.game.build.aimAt(hit.point.x, hit.point.z);
+    this.game.build.placeAtAim();
   }
 
   _bindKeys() {
@@ -93,7 +109,7 @@ export class InputSystem {
       if (e.code === "KeyG") this.game.toggleDebug();
       if (e.code === "KeyQ") this.game.cycleStructure();
       if (e.code === "KeyK") this.game.toggleSandbox();
-      if (e.code === "KeyN") this.game.waves.spawnWave();
+      if (e.code === "KeyN") this.game.cycle.spawnRaid();
       if (e.code === "KeyP") this.game.toggleWavePause();
       if (e.code === "KeyF" && !e.repeat) {
         const item = this.game.equip.handItem();
@@ -105,7 +121,7 @@ export class InputSystem {
           this.game.build.placeAtAim();
         } else this.game.player.acting = true;
       }
-      if (e.code === "KeyI" || e.code === "Tab") { e.preventDefault(); this.game.ui.toggleBackpack(); }
+      if (e.code === "KeyI" || e.code === "Tab") { e.preventDefault(); this.game.panel.toggle(); }
       if (e.code.startsWith("Digit")) {
         const n = parseInt(e.code.slice(5), 10) - 1;
         if (n >= 0 && n < HOTBAR_SIZE) this.game.equip.selectHand(n);

@@ -32,11 +32,18 @@ export class CombatSystem {
       const equip = this.game.equip;
       for (const n of this._arcBuf) {
         const mul = equip.harvestFor(n.def.material);
-        if (mul <= 0 || (n.def.minHarvest && mul < n.def.minHarvest)) { this.game.warnTool(n.def); continue; }
+        if (mul <= 0 || (n.def.minHarvest && mul < n.def.minHarvest)) { this._warnTool(n.def); continue; }
         n.takeDamage(equip.damage * mul);
       }
     }
-    this.game.slashFx(player);
+    this.game.fx.slash(player);
+  }
+
+  /** Throttled nudge when the held item is too crude for the material. */
+  _warnTool(def) {
+    if (this._toolWarn && performance.now() - this._toolWarn < 2500) return;
+    this._toolWarn = performance.now();
+    this.game.ui.toast(def.label + " needs a proper tool - try a pick");
   }
 
   separation(self, radius) {

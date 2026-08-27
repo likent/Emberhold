@@ -6,9 +6,9 @@
  *   data/     tunables and catalogs - config, items, recipes, structures
  *   core/     grid, flow field, auto-tiling, small helpers
  *   world/    things with a mesh and an update - player, enemies, nodes
- *   systems/  build, crafting, day cycle, hordes, combat, economy
- *   ui/       panel, hotbar, input, camera, debug overlay
- *   game.js   wiring, the frame loop, save and load
+ *   systems/  build, crafting, day cycle, hordes, combat, economy, saves
+ *   ui/       HUD, panel, palette, input, camera, debug overlay
+ *   game.js   wiring and the frame loop
  *
  * Pathfinding note: costs are in SECONDS. Walking a cell costs
  * cellSize / enemySpeed; entering a structure cell costs that plus

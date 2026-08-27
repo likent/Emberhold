@@ -24,7 +24,7 @@ export class CostHeatmap {
   setVisible(v) { this.mesh.visible = v; }
   refresh() {
     if (!this.mesh.visible) return;
-    const g = this.game.grid, p = this.game.path, data = this.image.data;
+    const g = this.game.grid, p = this.game.paths.shown, data = this.image.data;
     const max = p.maxDist || 1;
     for (let i = 0; i < g.w * g.h; i++) {
       const o = i * 4;

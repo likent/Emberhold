@@ -8,12 +8,12 @@ module.exports = {
     const t = await boot();
     t.sim(4);
     for (const id of ["raider", "runner", "critter", "brute"]) {
-      const field = t.game.fields[id];
+      const field = t.game.paths.fields[id];
       let pushes = 0;
       const push = field.heap.push.bind(field.heap);
       field.heap.push = (n, c) => { pushes++; push(n, c); };
       field.sig = "";
-      t.game._rebuildField(field);
+      t.game.paths.rebuild(field);
       field.heap.push = push;
       // 1600 cells, eight neighbours each. Anything beyond that means cells
       // are being re-opened, which is how the float32 bug showed itself.
@@ -34,7 +34,7 @@ module.exports = {
     t.sim(10);
 
     const g = t.grid;
-    for (const id of Object.keys(t.game.fields)) {
+    for (const id of Object.keys(t.game.paths.fields)) {
       const type = t.type(id);
       const walk = g.cell / type.speed;
       for (let i = 0; i < g.w * g.h; i++) {
@@ -63,7 +63,7 @@ module.exports = {
     withGap.game.player.position.set(g.centerX(18), 0, g.centerZ(16));
     const walls = withGap.build.placed.size;
     withGap.game.spawnEnemy(g.centerX(18), g.centerZ(24), withGap.type("raider"));
-    withGap.game.path.dirty = true;
+    withGap.game.paths.invalidate();
     withGap.sim(4);
     let crossed = false;
     for (let k = 0; k < 2000 && !crossed; k++) {
@@ -91,7 +91,7 @@ module.exports = {
     for (let i = 0; i < 30; i++) {
       t.game.spawnEnemy(g.centerX(14 + (i % 12)), g.centerZ(26), t.type("raider"));
     }
-    t.game.path.dirty = true;
+    t.game.paths.invalidate();
     const walls = t.build.placed.size;
     t.sim(1200);
     assert(t.build.placed.size === walls,

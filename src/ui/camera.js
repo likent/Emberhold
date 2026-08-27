@@ -9,6 +9,9 @@ export class CameraRig {
     this.target = new THREE.Vector3();
     this.shake = 0;
   }
+  /** A hit, a raid landing, going down: the camera is knocked, never reset. */
+  kick(amount) { this.shake = Math.max(this.shake, amount); }
+
   rotate(dx, dy) {
     this.yaw -= dx * 0.006;
     this.pitch = clamp(this.pitch + dy * 0.004, 0.22, 1.25);

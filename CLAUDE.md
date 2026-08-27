@@ -26,24 +26,47 @@ server (`npm start`) is needed rather than opening the file.
 | File | What it owns |
 | --- | --- |
 | `src/data/config.js` | every tunable: cycle length, hunger, hordes, sky, save keys |
-| `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph |
+| `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph; `DEPLOYABLES` declares the carryable placeables and prices them from their structure |
 | `src/data/resources.js` | tree, bush, berry bush, rock, ore, mine, quarry |
-| `src/data/structures.js` | everything placeable, with its own `build()` mesh factory |
-| `src/data/materials.js` | the shared `MATS` / `GEO` pools every mesh draws from |
+| `src/data/structures.js` | everything placeable, with its own `build()` mesh factory; tiers are `variantOf` the thing below them |
+| `src/data/materials.js` | the shared `MATS` / `GEO` pools, and `buildGeometry()` that fills them |
 | `src/core/grid.js` | 40×40 cells, cell size 2. Cell types: EMPTY/BLOCKER/STRUCT/TRAP |
 | `src/core/minheap.js` / `core/pathfinder.js` | one Dijkstra flow field per enemy class |
 | `src/core/autotile.js` | neighbour masks, arms and corner braces for wall runs |
 | `src/core/util.js` | `clamp`, `lerpAngle`, `costText` — that is all |
+| `src/core/collision.js` | sliding movement against the grid, one axis at a time |
 | `src/world/entity.js` → `world/player.js` / `world/enemy.js` / `world/resources.js` | `update(dt)` pattern |
-| `src/systems/build.js` | placement, auto-tiling, upgrades, repair, stations |
-| `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, durability, loadout |
+| `src/world/scenery.js` | lights, ground plane, the two sky presets and the blend between them |
+| `src/systems/build.js` | placement, auto-tiling, upgrades, repair, and what a thing costs |
+| `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, the starting kit, durability, loadout |
 | `src/systems/crafting.js` | timed jobs and the four-slot output tray |
 | `src/systems/daycycle.js` / `hordes.js` | raids by night, wandering bands by day |
 | `src/systems/combat.js` / `healthbars.js` | swing arcs, damage, floating bars |
-| `src/ui/ui.js` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
+| `src/systems/fields.js` | which flow field may rebuild this frame, and what it aims at |
+| `src/systems/core.js` | the core: spawn, lift, carry, set down, lose |
+| `src/systems/packs.js` | sacks on the ground — death drops, spilled harvests, rot |
+| `src/systems/persistence.js` | the save format, autosave, and booting from a corrupt one |
+| `src/systems/stations.js` | what is in reach: bench, fire, furnace, chest, and their buttons |
+| `src/systems/slots.js` | moving entries between backpack, chest, sack, armor, ground |
+| `src/systems/gear.js` | salvage and repair prices, both read off the recipe |
+| `src/systems/fx.js` | chips, collapses, bolts in flight, the swing arc |
+| `src/systems/wildlife.js` | the boars, and nothing else |
+| `src/ui/ui.js` | the HUD: bars, day card, toasts, overlay. All hand-rolled DOM |
+| `src/ui/cells.js` | the one widget it is all built from: draw, tap, hold, drag |
+| `src/ui/item-info.js` | the card a long press opens, for items and buildings alike |
+| `src/ui/panel.js` | the backpack: which tabs exist, the bag, the hotbar, chest and sack |
+| `src/ui/craft-panel.js` | recipes, station trays, both queues, repair and salvage |
+| `src/ui/stats.js` | the stats tab, and the save buttons on it |
+| `src/ui/palette.js` | the build picker: category chips and their variants |
+| `src/ui/buttons.js` | every on-screen button, bound by id; tap and hold |
 | `src/ui/input.js` / `camera.js` / `icons.js` / `heatmap.js` | thumbstick, rig, SVG glyphs, debug overlay |
-| `src/game.js` | wiring, the frame loop, save and load |
+| `src/game.js` | wiring, the frame loop, the sandbox and debug switches |
 | `src/main.js` | entry point: error reporting, then `new Game()` |
+
+Every system follows the same shape: a class whose constructor takes the game
+and stores it, hung off `Game` under a short name (`game.packs`, `game.saves`,
+`game.core`). Systems reach each other through the game, never by importing
+one another — that is what keeps the module graph a tree.
 
 ### Pathfinding — read this before touching it
 
@@ -60,6 +83,11 @@ enterCost = cellSize / speed + structureHp / dpsVsStructure
 That single formula decides break-or-detour. A steel wall costs a raider 236
 seconds and a brute 124, so both look for a way around; if there is none they
 chew through, and that is correct.
+
+`systems/fields.js` owns the other half: which class may rebuild this frame
+(at most one, and only if its targets or the grid actually changed), and what
+the field aims at. `paths.invalidate()` is how the rest of the game says the
+world moved.
 
 Three hard-won rules:
 
@@ -121,13 +149,20 @@ else repairs anything.
   performance question is settled (90 raiders hunting a running player: 0.19ms
   median frame). The design question is not: without something to defend,
   running away beats holding a wall.
-- Deployables and stations have tiers; walls, gear and hammers do too. Titanium
-  above steel is wanted but should wait until steel has been played with.
-- **`Game` is still a god class** — 1500 lines covering the frame loop, save
-  format, the core, death packs, slot moves, salvage and repair pricing. The
-  file split stopped at the class boundary on purpose, because breaking it up
-  means moving methods, not moving lines. Carrying, packs and persistence look
-  like the three seams.
+- Deployables and stations have tiers; walls, gear and hammers do too. A tier
+  is `variantOf(base, { … })` in `structures.js`: write only the numbers that
+  change, and the mesh and the behaviour come with it. Titanium above steel is
+  wanted but should wait until steel has been played with.
+- **`Game` is down to ~300 lines**: the constructor, the frame loop, `restart`,
+  `gameOver`, and the test switches — sandbox, the cost heatmap, the clock
+  pause — which stay because they cut across every system at once. Everything
+  else is a system taking the game. Do not split it further; what is left is
+  the wiring the file exists for.
+- **The interface is six files now**, none over 250 lines: `ui.js` is the HUD,
+  `panel.js` the backpack, `craft-panel.js` everything being made, plus the
+  cells, the info card and the palette. The rest of the game talks to
+  `game.ui` for a toast or a bar, `game.panel` to open or repaint the
+  backpack, and `game.palette` for build mode; nothing reaches past those.
 
 ## Testing
 
@@ -143,6 +178,22 @@ jsdom cannot import ES modules, so `tests/link.js` walks the import graph from
 and understands only the dialect above; that is deliberate, so a stray default
 export fails loudly instead of quietly producing a broken bundle. It is not a
 build step — nothing ships through it.
+
+`tests/wiring.test.js` presses every button, walks every tab, opens every
+station tab with the station standing next to the player, and taps the
+ground. A tab renders nothing while the panel is shut, so the tests open it
+first — asserting "no error" against a closed panel proves nothing. The panel is hand-rolled DOM bound by element id, so a method that
+moves out of `Game` fails only when the button is actually pressed — nothing
+earlier catches it. The world tap goes through `harness.worldTap`, which
+updates the matrices by hand first: the stubbed renderer never does, and the
+raycast behind the tap reads them.
+
+`tests/catalog.test.js` needs no browser at all: it links the data modules,
+runs them with a stubbed THREE and checks the tables against each other - that
+every deployable names a structure that exists, that the item and the structure
+point at each other, and that a deployable's recipe shares its structure's cost
+object rather than a copy of the numbers. Adding content is one line in one
+table and one entry in another, and those are the two mistakes it makes.
 
 Things worth asserting after any change to placement or meshes:
 

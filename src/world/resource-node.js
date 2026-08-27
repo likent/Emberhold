@@ -92,7 +92,7 @@ class ResourceNode {
   dispose(silent) {
     if (this.bar) { this.game.bars.destroy(this.bar); this.bar = null; }
     if (silent) this.game.scene.remove(this.object);
-    else this.game.playCollapse(this.object);
+    else this.game.fx.playCollapse(this.object);
     const g = this.game.grid;
     if (g.node[g.idx(this.cx, this.cy)] === this) g.node[g.idx(this.cx, this.cy)] = null;
     if (this.def.blocksMovement) g.clearCell(this.cx, this.cy);
@@ -122,7 +122,7 @@ export class ResourceSystem {
     if (!g.inBounds(cx, cy) || !g.isFree(g.idx(cx, cy)) || g.node[g.idx(cx, cy)]) return null;
     const node = new ResourceNode(this.game, def, cx, cy, growth);
     this.nodes.push(node);
-    this.game.path.dirty = true;
+    this.game.paths.invalidate();
     return node;
   }
 
@@ -153,7 +153,7 @@ export class ResourceSystem {
     const x = node.position.x, z = node.position.z;
     const gained = {}, spilled = {};
     const award = (key, amount) => {
-      const took = this.game.giveOrDrop(key, amount, x, z);
+      const took = this.game.packs.giveOrDrop(key, amount, x, z);
       if (took > 0) gained[key] = took;
       if (amount > took) spilled[key] = amount - took;
       const tally = this.game.stats.gathered;
@@ -165,7 +165,7 @@ export class ResourceSystem {
       if (Math.random() > drop.chance * node.growth) continue;
       award(drop.id, drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1)));
     }
-    this.game.spawnChips(x, 0.9, z, 7, node.def.chipColor);
+    this.game.fx.spawnChips(x, 0.9, z, 7, node.def.chipColor);
     const took = Object.keys(gained).length ? "+" + costText(gained) : "";
     const left = Object.keys(spilled).length ? "dropped " + costText(spilled) + " - pack full" : "";
     this.game.ui.toast([took, left].filter(Boolean).join(", "));
@@ -205,7 +205,7 @@ export class ResourceSystem {
     for (let i = this.nodes.length - 1; i >= 0; i--) {
       const n = this.nodes[i];
       n.update(dt);
-      if (n.dead) { n.dispose(); this.nodes.splice(i, 1); this.game.path.dirty = true; }
+      if (n.dead) { n.dispose(); this.nodes.splice(i, 1); this.game.paths.invalidate(); }
     }
   }
 
