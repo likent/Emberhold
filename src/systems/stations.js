@@ -48,9 +48,9 @@ export class StationSystem {
   }
 
   _openTab(tab) {
-    const ui = this.game.ui;
-    ui.showTab(tab);
-    if (!ui.panel.classList.contains("show")) ui.toggleBackpack();
+    const panel = this.game.panel;
+    panel.showTab(tab);
+    if (!panel.isOpen()) panel.toggle();
   }
 
   /**
@@ -76,6 +76,6 @@ export class StationSystem {
     if (near === this._btnOn[kind]) return;
     this._btnOn[kind] = near;
     document.getElementById(id).classList.toggle("hidden", !near);
-    if (this.game.ui.panel.classList.contains("show")) this.game.ui.refreshBackpack();
+    if (this.game.panel.isOpen()) this.game.panel.refresh();
   }
 }

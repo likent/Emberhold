@@ -7,7 +7,7 @@
  *   core/     grid, flow field, auto-tiling, small helpers
  *   world/    things with a mesh and an update - player, enemies, nodes
  *   systems/  build, crafting, day cycle, hordes, combat, economy, saves
- *   ui/       panel, hotbar, input, camera, debug overlay
+ *   ui/       HUD, panel, palette, input, camera, debug overlay
  *   game.js   wiring and the frame loop
  *
  * Pathfinding note: costs are in SECONDS. Walking a cell costs

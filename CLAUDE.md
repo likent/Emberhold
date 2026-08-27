@@ -51,7 +51,13 @@ server (`npm start`) is needed rather than opening the file.
 | `src/systems/gear.js` | salvage and repair prices, both read off the recipe |
 | `src/systems/fx.js` | chips, collapses, bolts in flight, the swing arc |
 | `src/systems/wildlife.js` | the boars, and nothing else |
-| `src/ui/ui.js` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
+| `src/ui/ui.js` | the HUD: bars, day card, toasts, overlay. All hand-rolled DOM |
+| `src/ui/cells.js` | the one widget it is all built from: draw, tap, hold, drag |
+| `src/ui/item-info.js` | the card a long press opens, for items and buildings alike |
+| `src/ui/panel.js` | the backpack: which tabs exist, the bag, the hotbar, chest and sack |
+| `src/ui/craft-panel.js` | recipes, station trays, both queues, repair and salvage |
+| `src/ui/stats.js` | the stats tab, and the save buttons on it |
+| `src/ui/palette.js` | the build picker: category chips and their variants |
 | `src/ui/buttons.js` | every on-screen button, bound by id; tap and hold |
 | `src/ui/input.js` / `camera.js` / `icons.js` / `heatmap.js` | thumbstick, rig, SVG glyphs, debug overlay |
 | `src/game.js` | wiring, the frame loop, the sandbox and debug switches |
@@ -150,10 +156,11 @@ else repairs anything.
   pause — which stay because they cut across every system at once. Everything
   else is a system taking the game. Do not split it further; what is left is
   the wiring the file exists for.
-- **`ui/ui.js` is the god file now** — 880 lines. The nine panel renderers
-  (`_renderChest` / `_renderStation` / `_renderStats` / `_renderSalvage` / …)
-  are ~330 of them and the drag-and-drop another ~80; both would come out
-  cleanly, and `showTab` is the only thing the rest of the game needs.
+- **The interface is six files now**, none over 250 lines: `ui.js` is the HUD,
+  `panel.js` the backpack, `craft-panel.js` everything being made, plus the
+  cells, the info card and the palette. The rest of the game talks to
+  `game.ui` for a toast or a bar, `game.panel` to open or repaint the
+  backpack, and `game.palette` for build mode; nothing reaches past those.
 
 ## Testing
 
@@ -170,8 +177,10 @@ and understands only the dialect above; that is deliberate, so a stray default
 export fails loudly instead of quietly producing a broken bundle. It is not a
 build step — nothing ships through it.
 
-`tests/wiring.test.js` presses every button, walks every tab and taps the
-ground. The panel is hand-rolled DOM bound by element id, so a method that
+`tests/wiring.test.js` presses every button, walks every tab, opens every
+station tab with the station standing next to the player, and taps the
+ground. A tab renders nothing while the panel is shut, so the tests open it
+first — asserting "no error" against a closed panel proves nothing. The panel is hand-rolled DOM bound by element id, so a method that
 moves out of `Game` fails only when the button is actually pressed — nothing
 earlier catches it. The world tap goes through `harness.worldTap`, which
 updates the matrices by hand first: the stubbed renderer never does, and the

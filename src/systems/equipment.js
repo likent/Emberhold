@@ -18,7 +18,7 @@ export class Equipment {
    */
   changed() {
     if (this.game.player) this.game.player.refreshWeaponMesh();
-    this.game.ui.refreshBackpack();
+    this.game.panel.refresh();
     this.game.ui.setActionIcon(this.handItem());
     this.game.build.syncSelection();
   }
@@ -111,7 +111,7 @@ export class Equipment {
       this.game.ui.toast(ITEMS[entry.id].label + " broke");
       this.changed();
     } else {
-      this.game.ui.refreshHotbar();
+      this.game.panel.refreshHotbar();
     }
   }
 

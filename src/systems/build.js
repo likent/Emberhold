@@ -44,13 +44,13 @@ export class BuildSystem {
     if (!on) this.cancelLine();
     this.active = on;
     if (!on && this.ghost) this.ghost.visible = false;
-    this.game.ui.setBuildMode(on);
+    this.game.palette.setBuildMode(on);
   }
 
   select(id) {
     this.selected = STRUCTURES[id];
     this.ghostKey = "";
-    this.game.ui.setSelectedStructure(id);
+    this.game.palette.setSelected(id);
   }
 
   /* ---- auto-tiling ------------------------------------------------------ */
@@ -227,12 +227,12 @@ export class BuildSystem {
 
   /** Choosing a deployable anywhere arms it and opens placement. */
   selectFromBag(id) {
-    const ui = this.game.ui;
+    const panel = this.game.panel;
     this.select(id);
     if (!this.active) this.setActive(true);
-    ui.togglePalette(false);
-    if (ui.panel.classList.contains("show")) ui.toggleBackpack();
-    ui.toast(STRUCTURES[id].label + " ready to place");
+    this.game.palette.toggle(false);
+    if (panel.isOpen()) panel.toggle();
+    this.game.ui.toast(STRUCTURES[id].label + " ready to place");
   }
 
   /**

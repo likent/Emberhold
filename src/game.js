@@ -24,6 +24,8 @@ import { bindButtons } from "./ui/buttons.js";
 import { CameraRig } from "./ui/camera.js";
 import { CostHeatmap } from "./ui/heatmap.js";
 import { InputSystem } from "./ui/input.js";
+import { Palette } from "./ui/palette.js";
+import { Panel } from "./ui/panel.js";
 import { UI } from "./ui/ui.js";
 import { Enemy } from "./world/enemy.js";
 import { Player } from "./world/player.js";
@@ -65,6 +67,8 @@ export class Game {
     // Systems take the game and nothing else, so the order below only has to
     // satisfy constructors that touch the scene - not who calls whom later.
     this.ui = new UI(this);
+    this.panel = new Panel(this);
+    this.palette = new Palette(this);
     this.bars = new HealthBarSystem(this);
     this.equip = new Equipment(this);
     this.economy = new Economy(this);
@@ -109,7 +113,7 @@ export class Game {
     this.ui.setInvulnerable(this.sandbox);
     this.ui.setActionIcon(this.equip.handItem());
     document.getElementById("huntBtn").classList.toggle("on", this.huntPlayer);
-    this.ui.setBuildMode(false);
+    this.palette.setBuildMode(false);
     this.ui.setHp(1);
     this.saveTimer = CONFIG.save.autoEvery;
     try {
@@ -270,7 +274,7 @@ export class Game {
     this.stations.update();
     this.handQueue.update(dt);
     this.build.updateQueues(dt);
-    this.ui.tick(dt);
+    this.panel.tick(dt);
     this.resources.update(dt);
     this.build.updateActive(dt);
     this.fx.updateBolts(dt);

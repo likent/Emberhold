@@ -9,7 +9,6 @@ export class Economy {
   constructor(game) {
     this.game = game;
     this.inv = new Inventory(CONFIG.inventory.slots, true);
-    this.res = { wood: 0, stone: 0 };          // read-only mirror for the HUD
     this.infinite = CONFIG.sandbox.enabled;    // mirrors game.sandbox
   }
   /**
@@ -58,10 +57,9 @@ export class Economy {
     return true;
   }
   setInfinite(on) { this.infinite = on; this._sync(); }
+  /** The bag changed: what you can afford to build, and what the bag shows. */
   _sync() {
-    this.res.wood = this.inv.count("wood");
-    this.res.stone = this.inv.count("stone");
-    this.game.ui.setResources(this.res, this.infinite);
-    this.game.ui.refreshBackpack();
+    this.game.palette.refresh();
+    this.game.panel.refresh();
   }
 }

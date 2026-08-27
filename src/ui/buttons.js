@@ -17,10 +17,10 @@ export function bindButtons(game) {
   tap("sandboxBtn", () => game.toggleSandbox());
   tap("waveCard", () => game.toggleWavePause());
   tap("coreBtn", () => (game.core.carrying ? game.core.setDown() : game.core.lift()));
-  tap("pickBtn", () => game.ui.togglePalette());
+  tap("pickBtn", () => game.palette.toggle());
   bindPlaceButton(game);
   bindActionButton(game);
-  tap("bagBtn", () => game.ui.toggleBackpack());
+  tap("bagBtn", () => game.panel.toggle());
   tap("benchBtn", () => game.stations.openBench());
   tap("furnaceBtn", () => game.stations.openFurnace());
   tap("packBtn", () => game.packs.openNearest());
@@ -28,11 +28,11 @@ export function bindButtons(game) {
   tap("cookBtn", () => game.stations.openCook());
   tap("chestBtn", () => game.stations.openChest());
   tap("storeAll", () => game.slots.storeAll());
-  tap("invClose", () => game.ui.toggleBackpack());
+  tap("invClose", () => game.panel.toggle());
   document.querySelectorAll(".tab").forEach(el => {
     el.addEventListener("pointerdown", e => {
       e.preventDefault(); e.stopPropagation();
-      game.ui.showTab(el.dataset.tab);
+      game.panel.showTab(el.dataset.tab);
     });
   });
   tap("waveBtn", () => game.cycle.spawnRaid());

@@ -39,7 +39,7 @@ src/data/       tunables and catalogs — config, items, recipes, structures
 src/core/       grid, flow field, auto-tiling, small helpers
 src/world/      things with a mesh and an update — player, enemies, nodes
 src/systems/    build, crafting, day cycle, hordes, combat, economy
-src/ui/         panel, hotbar, input, camera, debug overlay
+src/ui/         HUD, panel, palette, input, camera, debug overlay
 src/game.js     wiring and the frame loop
 ```
 

@@ -35,9 +35,37 @@ module.exports = {
     t.sim(4);
     for (const tab of TABS) {
       const before = t.errors.length;
-      t.game.ui.showTab(tab);
-      t.game.ui.refreshBackpack();
+      t.game.panel.showTab(tab);
+      t.game.panel.refresh();
       assert(t.errors.length === before, "tab " + tab + " renders", t.errors[before]);
+    }
+  },
+
+  "every station tab renders what is in reach": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    t.game.economy.add("wood", 400);
+    t.game.economy.add("stone", 400);
+    t.game.economy.add("iron_ingot", 40);
+    const g = t.grid;
+    const p = t.game.player.position;
+    const cx = g.cellX(p.x), cy = g.cellY(p.z);
+    // Each station has to be standing next to the player for its tab to exist.
+    const stations = [["workbench", "bench", "benchList"], ["furnace", "furnace", "furnaceList"],
+      ["campfire", "cook", "cookList"], ["chest", "chest", "chestBagGrid"]];
+    stations.forEach(([id], i) => t.place(id, cx + 1, cy - 1 + i));
+    t.sim(4);
+    t.game.panel.toggle();
+    for (const [id, tab, listId] of stations) {
+      const before = t.errors.length;
+      // A chest is opened rather than tabbed to: the tab only exists once one
+      // is actually in front of you.
+      if (tab === "chest") t.game.stations.openChest();
+      else t.game.panel.showTab(tab);
+      assert(t.game.panel.tab === tab, "the " + id + " tab opened", t.game.panel.tab);
+      assert(t.errors.length === before, "the " + id + " tab renders", t.errors[before]);
+      assert(t.$(listId).children.length > 0, "the " + id + " tab has rows in it");
     }
   },
 

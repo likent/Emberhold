@@ -128,7 +128,7 @@ export class SlotMoves {
     this.game.packs.dropItemsAt(p.x + Math.sin(this.game.player.yaw) * 1.4, p.z + Math.cos(this.game.player.yaw) * 1.4, [entry]);
     this.game.economy._sync();
     this.game.equip.changed();
-    this.game.ui.refreshBackpack();
+    this.game.panel.refresh();
     this.game.ui.toast("Dropped " + ITEMS[entry.id].label.toLowerCase());
   }
 }

@@ -121,7 +121,7 @@ export class InputSystem {
           this.game.build.placeAtAim();
         } else this.game.player.acting = true;
       }
-      if (e.code === "KeyI" || e.code === "Tab") { e.preventDefault(); this.game.ui.toggleBackpack(); }
+      if (e.code === "KeyI" || e.code === "Tab") { e.preventDefault(); this.game.panel.toggle(); }
       if (e.code.startsWith("Digit")) {
         const n = parseInt(e.code.slice(5), 10) - 1;
         if (n >= 0 && n < HOTBAR_SIZE) this.game.equip.selectHand(n);

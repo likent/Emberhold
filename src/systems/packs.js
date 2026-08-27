@@ -87,9 +87,9 @@ export class PackSystem {
     const pack = this.nearest();
     if (!pack) return;
     this.open = pack;
-    const ui = this.game.ui;
-    ui.showTab("pack");
-    if (!ui.panel.classList.contains("show")) ui.toggleBackpack();
+    const panel = this.game.panel;
+    panel.showTab("pack");
+    if (!panel.isOpen()) panel.toggle();
   }
 
   /** The inventory behind the pack tab, or null once the sack is gone. */
@@ -115,7 +115,7 @@ export class PackSystem {
     this.clearEmpty();
     if (!left) this.game.ui.toast("Sack emptied");
     else this.game.ui.toast(left + " stacks left, sack rots in " + Math.ceil(pack.life) + "s");
-    this.game.ui.refreshBackpack();
+    this.game.panel.refresh();
   }
 
   clearEmpty() {
@@ -129,7 +129,7 @@ export class PackSystem {
   }
 
   update(dt) {
-    const ui = this.game.ui;
+    const panel = this.game.panel;
     for (let i = this.list.length - 1; i >= 0; i--) {
       const pack = this.list[i];
       pack.bob += dt * 2.2;
@@ -153,9 +153,9 @@ export class PackSystem {
     if (!!near !== this._btnOn) {
       this._btnOn = !!near;
       document.getElementById("packBtn").classList.toggle("hidden", !near);
-      if (ui.panel.classList.contains("show")) ui.refreshBackpack();
+      if (panel.isOpen()) panel.refresh();
     }
-    if (near && this.open !== near && !ui.panel.classList.contains("show")) {
+    if (near && this.open !== near && !panel.isOpen()) {
       this.open = near;      // the button always opens the closest one
     }
     if (!near) this.open = null;
