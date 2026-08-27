@@ -1,12 +1,13 @@
 # Emberhold — working notes for Claude
 
-Single-file browser game. `index.html` is the whole thing: markup, CSS and
-about 6000 lines of JavaScript in one `<script>` block. Three.js r128 comes
-from a CDN. There is no build step and no bundler.
+Browser game built from native ES modules. `index.html` is markup only; the
+code lives under `src/`. Three.js r128 comes from a CDN. There is no build step
+and no bundler — the browser loads the modules directly, which is why a static
+server (`npm start`) is needed rather than opening the file.
 
 ## Ground rules
 
-- **Never rewrite the file.** Make surgical edits. A rewrite loses the
+- **Never rewrite a file.** Make surgical edits. A rewrite loses the
   accumulated balance and the comments that explain why numbers are what they
   are.
 - **Run the tests before handing anything back.** `npm test`. If a change
@@ -14,26 +15,35 @@ from a CDN. There is no build step and no bundler.
 - **Comments explain intent, not mechanics.** Say why a number is 42, not that
   a loop iterates.
 - The player plays on a phone. Every control must work with one thumb.
+- **Keep the module graph acyclic and the import dialect plain.** Single-line
+  `import { a, b } from "./x.js";`, `export` only as a declaration prefix, no
+  default exports. `tests/link.js` — which is how the test harness gets the
+  game into jsdom — refuses anything else, and `tests/modules.test.js` fails
+  on a cycle, an unresolved import or an export nobody consumes.
 
 ## Architecture
 
-Read in this order; each section is marked with a banner comment.
-
-| Section | What it owns |
+| File | What it owns |
 | --- | --- |
-| `CONFIG` | every tunable: cycle length, hunger, hordes, sky, save keys |
-| `ITEMS` / `RECIPES` | item catalog and the crafting graph |
-| `RESOURCES` | tree, bush, berry bush, rock, ore, mine, quarry |
-| `STRUCTURES` | everything placeable, with its own `build()` mesh factory |
-| `Grid` | 40×40 cells, cell size 2. Cell types: EMPTY/BLOCKER/STRUCT/TRAP |
-| `MinHeap` / `Pathfinder` | one Dijkstra flow field per enemy class |
-| `Entity` → `Player` / `Enemy` / `ResourceNode` | `update(dt)` pattern |
-| `BuildSystem` | placement, auto-tiling, upgrades, repair, stations |
-| `Inventory` / `Economy` / `Equipment` | slots, stacking, durability, loadout |
-| `CraftQueue` / `BenchOutput` | timed jobs and the four-slot output tray |
-| `DayCycle` / `HordeSystem` | raids by night, wandering bands by day |
-| `UI` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
-| `Game` | wiring, the frame loop, save and load |
+| `src/data/config.js` | every tunable: cycle length, hunger, hordes, sky, save keys |
+| `src/data/items.js` / `data/recipes.js` | item catalog and the crafting graph |
+| `src/data/resources.js` | tree, bush, berry bush, rock, ore, mine, quarry |
+| `src/data/structures.js` | everything placeable, with its own `build()` mesh factory |
+| `src/data/materials.js` | the shared `MATS` / `GEO` pools every mesh draws from |
+| `src/core/grid.js` | 40×40 cells, cell size 2. Cell types: EMPTY/BLOCKER/STRUCT/TRAP |
+| `src/core/minheap.js` / `core/pathfinder.js` | one Dijkstra flow field per enemy class |
+| `src/core/autotile.js` | neighbour masks, arms and corner braces for wall runs |
+| `src/core/util.js` | `clamp`, `lerpAngle`, `costText` — that is all |
+| `src/world/entity.js` → `world/player.js` / `world/enemy.js` / `world/resources.js` | `update(dt)` pattern |
+| `src/systems/build.js` | placement, auto-tiling, upgrades, repair, stations |
+| `src/systems/inventory.js` / `economy.js` / `equipment.js` | slots, stacking, durability, loadout |
+| `src/systems/crafting.js` | timed jobs and the four-slot output tray |
+| `src/systems/daycycle.js` / `hordes.js` | raids by night, wandering bands by day |
+| `src/systems/combat.js` / `healthbars.js` | swing arcs, damage, floating bars |
+| `src/ui/ui.js` | panel, tabs, hotbar, palette, modals. All hand-rolled DOM |
+| `src/ui/input.js` / `camera.js` / `icons.js` / `heatmap.js` | thumbstick, rig, SVG glyphs, debug overlay |
+| `src/game.js` | wiring, the frame loop, save and load |
+| `src/main.js` | entry point: error reporting, then `new Game()` |
 
 ### Pathfinding — read this before touching it
 
@@ -113,6 +123,11 @@ else repairs anything.
   running away beats holding a wall.
 - Deployables and stations have tiers; walls, gear and hammers do too. Titanium
   above steel is wanted but should wait until steel has been played with.
+- **`Game` is still a god class** — 1500 lines covering the frame loop, save
+  format, the core, death packs, slot moves, salvage and repair pricing. The
+  file split stopped at the class boundary on purpose, because breaking it up
+  means moving methods, not moving lines. Carrying, packs and persistence look
+  like the three seams.
 
 ## Testing
 
@@ -122,6 +137,12 @@ else repairs anything.
 calling internals, because that is where the bugs were: a ghost that would not
 clear, a repair list wiped by the recipe list drawn after it, durability reset
 by moving an item into a chest.
+
+jsdom cannot import ES modules, so `tests/link.js` walks the import graph from
+`src/main.js` and concatenates it into one classic script. It is forty lines
+and understands only the dialect above; that is deliberate, so a stray default
+export fails loudly instead of quietly producing a broken bundle. It is not a
+build step — nothing ships through it.
 
 Things worth asserting after any change to placement or meshes:
 

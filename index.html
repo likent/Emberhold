@@ -2,19 +2,136 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
 <title>Emberhold</title>
-<!-- The game itself lives in emberhold.html; this is only the entry point
-     GitHub Pages looks for. Same origin, so saved runs carry over. -->
-<meta http-equiv="refresh" content="0; url=emberhold.html">
-<link rel="canonical" href="emberhold.html">
-<style>
-  body { background:#0b0f14; color:#cfe2f2; font:14px system-ui, sans-serif;
-         display:flex; height:100vh; margin:0; align-items:center; justify-content:center; }
-  a { color:#4fb4c9; }
-</style>
+<link rel="stylesheet" href="src/styles.css">
 </head>
 <body>
-  <p>Loading Emberhold… <a href="emberhold.html">enter</a></p>
+<canvas id="view"></canvas>
+
+<div id="topbar" class="hud">
+  <div class="pill"><i class="ic" data-icon="heart"></i><div class="bar"><i id="hpFill"></i></div></div>
+  <div class="pill" id="hungerPill"><i class="ic" data-icon="meat"></i><div class="bar"><i id="hungerFill"></i></div></div>
+  <div class="pill"><i class="ic" data-icon="skull"></i><span class="value" id="enemyCount">0</span></div>
+  <div class="pill" id="waveCard" title="Tap to pause the clock (sandbox)">
+    <i class="ic" data-icon="sun" id="phaseIcon"></i><span class="value" id="waveTimer">0:00</span>
+    <span class="badge">day <b id="waveNum">1</b></span>
+  </div>
+</div>
+
+<div id="utils">
+  <div class="ibtn sm" id="huntBtn" data-icon="target" title="Raiders hunt the player"></div>
+  <div class="ibtn sm" id="sandboxBtn" data-icon="infinity" title="Sandbox"></div>
+  <div class="ibtn sm hidden" id="waveBtn" data-icon="forward" title="Raid now"></div>
+  <div class="ibtn sm hidden" id="hordeBtn" data-icon="skull" title="Send a wandering band"></div>
+  <div class="ibtn sm hidden" id="debugBtn" data-icon="route" title="Path costs"></div>
+</div>
+
+<div id="joyZone">
+  <div id="joyBase"></div>
+  <div id="joyKnob"></div>
+</div>
+
+<div id="paletteSub"></div>
+<div id="palette"></div>
+
+<div id="buttons">
+  <div class="ibtn hidden" id="coreBtn" data-icon="coreLift" title="Carry the core"></div>
+  <div class="ibtn hidden" id="pickBtn" data-icon="layers" title="Choose a structure"></div>
+  <div class="ibtn hidden" id="placeBtn" data-icon="place" title="Place / demolish"></div>
+  <div class="ibtn hidden" id="benchBtn" data-icon="bench" title="Workbench"></div>
+  <div class="ibtn hidden" id="furnaceBtn" data-icon="furnace" title="Furnace"></div>
+  <div class="ibtn hidden" id="cookBtn" data-icon="fire" title="Campfire"></div>
+  <div class="ibtn hidden" id="packBtn" data-icon="bag" title="Recover your pack"></div>
+  <div class="ibtn hidden" id="chestBtn" data-icon="chest" title="Open chest"></div>
+  <div class="ibtn lg" id="actionBtn" data-icon="fist" title="Use what is in your hand"></div>
+</div>
+
+<div id="tools">
+  <div class="ibtn sm" id="buildBtn" data-icon="hammer" title="Build mode"></div>
+  <div class="ibtn sm" id="bagBtn" data-icon="bag" title="Backpack"></div>
+</div>
+
+<div id="invPanel">
+  <div class="panelHead">
+    <div class="tabs">
+      <span class="tab on" data-tab="bag">Backpack</span>
+      <span class="tab" data-tab="craft">Craft</span>
+      <span class="tab" data-tab="stats">Stats</span>
+      <span class="tab hidden" data-tab="bench">Workbench</span>
+      <span class="tab hidden" data-tab="furnace">Furnace</span>
+      <span class="tab hidden" data-tab="cook">Campfire</span>
+      <span class="tab hidden" data-tab="chest">Chest</span>
+      <span class="tab hidden" data-tab="pack">Sack</span>
+    </div>
+    <span id="invClose" class="ic" data-icon="close"></span>
+  </div>
+  <div class="panelBody">
+    <div id="tabBag">
+      <div class="secLabel">Worn</div>
+      <div id="equipRow"></div>
+      <div class="secLabel">Items</div>
+      <div id="invGrid"></div>
+    </div>
+    <div id="tabCraft" class="hidden"><div id="craftList"></div></div>
+    <div id="tabStats" class="hidden"><div id="statsList"></div></div>
+    <div id="tabBench" class="hidden">
+      <div class="secLabel">Ready <span class="hint">tap to take</span></div>
+      <div id="benchOut"></div>
+      <div id="benchList"></div>
+    </div>
+    <div id="tabFurnace" class="hidden">
+      <div class="secLabel">Ready <span class="hint">tap to take</span></div>
+      <div id="furnaceOut"></div>
+      <div id="furnaceList"></div>
+    </div>
+    <div id="tabCook" class="hidden">
+      <div class="secLabel">Ready <span class="hint">tap to take</span></div>
+      <div id="cookOut"></div>
+      <div id="cookList"></div>
+    </div>
+    <div id="tabPack" class="hidden">
+      <div class="secLabel">On the ground <span id="takeAll" class="linkBtn">take all</span></div>
+      <div id="packGrid"></div>
+      <div class="secLabel" style="margin-top:14px">Your backpack <span class="hint">tap to move</span></div>
+      <div id="packBagGrid"></div>
+    </div>
+    <div id="tabChest" class="hidden">
+      <div class="secLabel">Chest <span id="storeAll" class="linkBtn">store materials</span></div>
+      <div id="chestGrid"></div>
+      <div class="secLabel" style="margin-top:14px">Your backpack <span class="hint">tap to move</span></div>
+      <div id="chestBagGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="craftHud"></div>
+<div id="hotbar"></div>
+<div id="dragGhost"></div>
+
+<div id="itemModal">
+  <div class="modalCard">
+    <div class="modalTop">
+      <span class="glyph" id="modalIcon"></span>
+      <div><div id="modalName"></div><div class="cost" id="modalKind"></div></div>
+    </div>
+    <div id="modalStats"></div>
+    <div id="modalDesc"></div>
+    <div id="modalDrop" class="hidden">Drop it here</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="errbox"><b>Runtime error</b><span id="errmsg"></span></div>
+
+<div id="overlay">
+  <h1>Overrun</h1>
+  <p>The camp fell. Chop, mine, fortify — fences buy time, not safety.</p>
+  <div class="btn" id="restart">Play again</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
