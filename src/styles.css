@@ -1,0 +1,356 @@
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(12, 18, 26, 0.72);
+  --stroke: rgba(140, 170, 200, 0.22);
+  --text: #cfe2f2;
+  --dim: #7f97ad;
+  --hp: #e2564a;
+  --accent: #4fb4c9;
+  --danger: #ff7a5e;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+/* The canvas must be stretched by CSS as well as sized in the renderer,
+   otherwise it keeps its intrinsic buffer size and anchors to the left. */
+#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+.hud { position: fixed; z-index: 10; pointer-events: none; }
+#topbar {
+  top: 0; left: 0; right: 0;
+  padding: calc(env(safe-area-inset-top) + 8px) 10px 8px;
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel); border: 1px solid var(--stroke); border-radius: 999px;
+  padding: 5px 10px 5px 7px; backdrop-filter: blur(6px);
+}
+.ic { display: block; width: 17px; height: 17px; color: var(--dim); flex: none; }
+.ic svg { width: 100%; height: 100%; display: block; }
+.value { font-size: 14px; font-weight: 600; min-width: 1ch; }
+.bar { width: 74px; height: 6px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--hp); width: 100%; transition: width .12s linear; }
+#hungerFill { background: #d5a04a; }
+#hungerPill.starving { border-color: var(--danger); }
+#hungerPill.starving #hungerFill { background: var(--danger); }
+#waveCard { pointer-events: auto; position: relative; }
+#waveCard.imminent .value { color: var(--danger); }
+#waveCard.imminent .ic { color: var(--danger); }
+#waveCard.night { border-color: rgba(120,160,215,.55); background: rgba(40,60,110,.35); }
+#waveCard.paused { border-color: rgba(120,215,235,.6); background: rgba(79,180,201,.2); }
+#waveCard.paused .value { color: var(--accent); font-size: 11px; letter-spacing: .05em; }
+.badge {
+  font-size: 9px; color: var(--dim); border-left: 1px solid var(--stroke);
+  padding-left: 6px; margin-left: 1px;
+}
+
+/* Icon buttons: the label lives in the tooltip, the meaning in the glyph. */
+.ibtn {
+  pointer-events: auto; width: 54px; height: 54px; border-radius: 16px;
+  display: grid; place-items: center; color: var(--text);
+  background: var(--panel); border: 1px solid var(--stroke); backdrop-filter: blur(6px);
+}
+.ibtn svg { width: 24px; height: 24px; }
+.ibtn.lg { width: 62px; height: 62px; border-radius: 19px; }
+.ibtn.lg svg { width: 28px; height: 28px; }
+.ibtn.sm { width: 42px; height: 42px; border-radius: 13px; color: var(--dim); }
+.ibtn.sm svg { width: 19px; height: 19px; }
+#actionBtn.firing { background: rgba(226,86,74,.32); border-color: rgba(255,140,120,.7); }
+.ibtn.on { background: rgba(79,180,201,.26); border-color: rgba(120,215,235,.6); color: #eaf7fb; }
+.ibtn:active { transform: translateY(1px); }
+#utils {
+  position: fixed; z-index: 12; right: 14px;
+  top: calc(env(safe-area-inset-top) + 62px);
+  display: flex; gap: 8px;
+}
+/* Build and backpack are menus, not actions: they live away from the
+   thumb that fights, on the opposite side of the screen. */
+#tools {
+  position: fixed; z-index: 12; left: 14px;
+  top: calc(env(safe-area-inset-top) + 62px);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+#joyZone {
+  position: fixed; z-index: 12; left: 0; bottom: 0;
+  width: 45vw; height: 42vh; touch-action: none; pointer-events: auto;
+}
+#joyBase {
+  position: absolute; width: 128px; height: 128px; margin: -64px 0 0 -64px;
+  border-radius: 50%; border: 1px solid var(--stroke);
+  background: radial-gradient(circle, rgba(79,180,201,.10), rgba(10,16,22,.42));
+  opacity: 0; transition: opacity .12s;
+}
+#joyKnob {
+  position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 50%; background: rgba(79,180,201,.34);
+  border: 1px solid rgba(140,200,220,.5); opacity: 0; transition: opacity .12s;
+}
+#joyZone.active #joyBase, #joyZone.active #joyKnob { opacity: 1; }
+
+#buttons {
+  position: fixed; z-index: 12; right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
+  display: flex; flex-direction: column; gap: 9px; align-items: flex-end;
+}
+.btn {
+  pointer-events: auto; min-width: 96px; text-align: center;
+  padding: 13px 16px; border-radius: 12px; font-size: 13px; font-weight: 600;
+  letter-spacing: .04em; color: var(--text);
+  background: var(--panel); border: 1px solid var(--stroke); backdrop-filter: blur(6px);
+}
+.btn.on { background: rgba(79,180,201,.26); border-color: rgba(120,215,235,.6); color: #eaf7fb; }
+.btn.small { min-width: 74px; padding: 10px 12px; font-size: 11px; font-weight: 500; color: var(--dim); }
+.btn:active { transform: translateY(1px); }
+.chip .sub { display: block; font-size: 10px; color: var(--dim); font-weight: 400; margin-top: 2px; }
+
+.hidden { display: none !important; }
+/* Part of the button column, so it always sits right above the buttons
+   however many of them are currently visible. */
+/* A horizontal strip above the hotbar: the vertical stack ran off the top
+   of the screen once there were six structures. */
+#palette {
+  position: fixed; z-index: 12; left: 0; right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 62px);
+  display: none; gap: 7px; padding: 0 12px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  pointer-events: none;   /* only the chips themselves are tappable */
+}
+#palette::-webkit-scrollbar { display: none; }
+/* The variant list opens upward from the category strip and closes on pick. */
+#paletteSub {
+  position: fixed; z-index: 13; left: 12px; right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 108px);
+  display: none; flex-direction: column; gap: 6px; align-items: flex-start;
+  pointer-events: none;
+}
+#paletteSub.show { display: flex; }
+.variant {
+  touch-action: none; pointer-events: auto;
+  display: flex; align-items: baseline; gap: 10px; min-width: 208px;
+  padding: 9px 12px; border-radius: 10px; font-size: 12px;
+  background: rgba(10,15,21,.94); border: 1px solid var(--stroke); backdrop-filter: blur(6px);
+}
+.variant.on { border-color: rgba(120,215,235,.6); background: rgba(79,180,201,.2); }
+.variant.poor { opacity: .45; }
+.variant .nm { flex: 1; color: var(--text); }
+.variant .hp { color: var(--dim); font-size: 10px; }
+#palette.show { display: flex; }
+.chip {
+  touch-action: pan-x;   /* strip scrolls sideways from the chips themselves */
+  pointer-events: auto; flex: none; text-align: center; white-space: nowrap;
+  padding: 8px 12px; border-radius: 10px; font-size: 12px;
+  background: var(--panel); border: 1px solid var(--stroke); backdrop-filter: blur(6px);
+  color: var(--dim);
+}
+.chip.on { color: var(--text); border-color: rgba(120,215,235,.6); background: rgba(79,180,201,.2); }
+.chip.poor { opacity: .45; }
+
+#toast {
+  position: fixed; z-index: 14; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  padding: 8px 14px; border-radius: 999px; font-size: 12px;
+  background: var(--panel); border: 1px solid var(--stroke);
+  opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+
+#overlay {
+  position: fixed; inset: 0; z-index: 20; display: none;
+  align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+  background: rgba(6, 10, 14, .82); backdrop-filter: blur(3px); text-align: center; padding: 24px;
+}
+#overlay.show { display: flex; }
+#overlay h1 { margin: 0; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+#overlay p { margin: 0; color: var(--dim); font-size: 13px; max-width: 34ch; line-height: 1.6; }
+
+#invPanel {
+  position: fixed; z-index: 25; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top) + 62px);
+  width: min(94vw, 400px); max-height: 74vh;
+  display: none; flex-direction: column; border-radius: 14px; overflow: hidden;
+  background: rgba(10, 15, 21, .96); border: 1px solid var(--stroke);
+  backdrop-filter: blur(8px);
+}
+#invPanel.show { display: flex; }
+/* Header stays put; only the body scrolls, so close is always one tap away. */
+.panelHead {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-bottom: 1px solid var(--stroke);
+  background: rgba(10, 15, 21, .98);
+}
+.panelBody {
+  overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; touch-action: pan-y;
+}
+/* With a campfire, bench and chest all in reach there are six tabs; the
+   row scrolls and the close button stays pinned beside it. */
+.tabs {
+  display: flex; gap: 6px; flex: 1; min-width: 0;
+  overflow-x: auto; scrollbar-width: none; touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  pointer-events: auto; flex: none; white-space: nowrap;
+  padding: 7px 13px; border-radius: 9px; font-size: 12px;
+  color: var(--dim); border: 1px solid transparent; touch-action: pan-x;
+}
+.tab.on { color: var(--text); background: rgba(79,180,201,.2); border-color: rgba(120,215,235,.5); }
+#invClose {
+  flex: none; width: 32px; height: 32px; padding: 6px; margin-left: 2px;
+  border-radius: 9px; color: var(--text); pointer-events: auto;
+  background: rgba(255,255,255,.07); border: 1px solid var(--stroke);
+}
+.secLabel {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dim); margin: 2px 2px 8px;
+}
+#tabBag .secLabel:nth-of-type(2) { margin-top: 14px; }
+.invBar {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dim); margin: 10px 2px 6px;
+}
+#equipRow { display: flex; gap: 8px; margin-bottom: 12px; }
+#equipRow .cell { width: 62px; height: 62px; aspect-ratio: auto; flex: none; }
+#equipRow .cell.readonly { opacity: .85; border-style: dashed; }
+#invGrid, #chestGrid, #chestBagGrid, #packGrid, #packBagGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+#benchOut, #furnaceOut, #cookOut { display: flex; gap: 8px; margin-bottom: 4px; }
+#benchOut .cell, #furnaceOut .cell, #cookOut .cell { width: 54px; height: 54px; aspect-ratio: auto; flex: none; }
+#benchOut .cell.ready, #furnaceOut .cell.ready, #cookOut .cell.ready {
+  border-color: rgba(120,215,235,.6); background: rgba(79,180,201,.18);
+}
+.hint { float: right; color: var(--dim); text-transform: none; letter-spacing: 0; }
+.linkBtn { pointer-events: auto; color: var(--accent); float: right; text-transform: none; letter-spacing: 0; }
+.note { font-size: 11px; color: var(--danger); margin: 0 2px 10px; }
+.cell {
+  /* Without this the panel's own scroll swallows the drag on touch. */
+  touch-action: none;
+  position: relative; aspect-ratio: 1; border-radius: 9px; padding: 4px;
+  background: rgba(255,255,255,.045); border: 1px solid var(--stroke);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; font-size: 9px; line-height: 1.1; overflow: hidden; text-align: center;
+}
+.cell.filled { background: rgba(255,255,255,.09); }
+.cell.gear { border-color: rgba(120,215,235,.45); }
+.cell .glyph { width: 22px; height: 22px; }
+.cell .glyph svg { width: 100%; height: 100%; }
+.cell .nm { color: var(--dim); word-break: break-word; }
+.cell .qty {
+  position: absolute; right: 3px; bottom: 2px; font-size: 10px; font-weight: 600; color: var(--text);
+}
+.cell .slotName { color: var(--dim); }
+.cell .dur {
+  position: absolute; left: 4px; right: 4px; bottom: 2px; height: 3px;
+  border-radius: 2px; background: rgba(255,255,255,.14); overflow: hidden;
+}
+.cell .dur > i { display: block; height: 100%; background: var(--accent); }
+.cell.dragSrc { opacity: .35; }
+.cell.dropTarget { border-color: var(--accent); background: rgba(79,180,201,.22); }
+#dragGhost {
+  touch-action: none;
+  position: fixed; z-index: 40; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 10px; pointer-events: none; display: none;
+  background: rgba(20,30,40,.92); border: 1px solid var(--accent);
+  align-items: center; justify-content: center;
+}
+#dragGhost.show { display: flex; }
+#dragGhost svg { width: 26px; height: 26px; }
+
+/* Hotbar: the first four inventory slots, always on screen. */
+#craftHud {
+  position: fixed; z-index: 12; left: 12px;
+  top: calc(env(safe-area-inset-top) + 62px);
+  display: none; flex-direction: column; gap: 6px; pointer-events: none;
+}
+#craftHud.show { display: flex; }
+.job {
+  pointer-events: auto; display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 6px 7px; border-radius: 10px; font-size: 11px;
+  background: var(--panel); border: 1px solid var(--stroke); backdrop-filter: blur(6px);
+}
+.job .glyph { width: 20px; height: 20px; flex: none; }
+.job .glyph svg { width: 100%; height: 100%; }
+.recipe .meter { width: 62px; height: 4px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; flex: none; }
+.recipe .meter > i { display: block; height: 100%; background: var(--accent); }
+.job .meter { width: 62px; height: 4px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+.job .meter > i { display: block; height: 100%; background: var(--accent); }
+.job .queued { color: var(--dim); }
+.job.pending { opacity: .55; }
+
+#hotbar {
+  position: fixed; z-index: 13; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 6px);
+  display: flex; gap: 7px;
+}
+#hotbar .cell {
+  pointer-events: auto; width: 48px; height: 48px; aspect-ratio: auto;
+  background: var(--panel); backdrop-filter: blur(6px);
+}
+#hotbar .cell.sel { border-color: var(--accent); background: rgba(79,180,201,.24); }
+#hotbar .cell .key {
+  position: absolute; left: 4px; top: 2px; font-size: 8px; color: var(--dim);
+}
+#craftList, #benchList, #furnaceList, #cookList, #statsList { display: flex; flex-direction: column; gap: 5px; }
+.statRow {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding: 7px 11px; border-radius: 9px; font-size: 12px;
+  background: rgba(255,255,255,.05); border: 1px solid var(--stroke);
+}
+.statRow .k { color: var(--dim); }
+.statRow .v { font-weight: 600; }
+.statRow.weak .v { color: var(--dim); font-weight: 400; }
+.recipe .glyph { width: 22px; height: 22px; flex: none; }
+.recipe .glyph svg { width: 100%; height: 100%; }
+.recipe {
+  touch-action: pan-y;   /* let the list scroll from anywhere, tap still works */
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 9px 11px; border-radius: 10px; font-size: 12px;
+  background: rgba(255,255,255,.05); border: 1px solid var(--stroke);
+}
+.recipe .cost { color: var(--dim); font-size: 10px; }
+.recipe.poor { opacity: .42; }
+.recipe.worn { border-color: rgba(120,215,235,.5); }
+
+#itemModal {
+  position: fixed; inset: 0; z-index: 30; display: none;
+  align-items: center; justify-content: center; padding: 24px;
+  background: rgba(5, 8, 12, .6); pointer-events: auto;
+}
+#itemModal.show { display: flex; }
+.modalCard {
+  width: min(88vw, 320px); padding: 16px; border-radius: 14px;
+  background: rgba(12, 18, 26, .98); border: 1px solid var(--stroke);
+}
+.modalTop { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.modalTop .glyph { width: 34px; height: 34px; flex: none; }
+.modalTop .glyph svg { width: 100%; height: 100%; }
+#modalName { font-size: 15px; font-weight: 600; }
+#modalStats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#modalStats span {
+  font-size: 11px; padding: 4px 8px; border-radius: 7px;
+  background: rgba(255,255,255,.07); border: 1px solid var(--stroke);
+}
+#modalDesc { font-size: 12px; line-height: 1.55; color: var(--dim); }
+#modalDrop {
+  margin-top: 14px; padding: 10px; border-radius: 10px; text-align: center;
+  font-size: 12px; color: var(--danger); pointer-events: auto; touch-action: none;
+  background: rgba(226,86,74,.12); border: 1px solid rgba(255,122,94,.4);
+}
+
+#errbox {
+  position: fixed; z-index: 30; left: 10px; right: 10px;
+  top: calc(env(safe-area-inset-top) + 10px);
+  display: none; padding: 10px 12px; border-radius: 10px;
+  background: rgba(60, 14, 10, .94); border: 1px solid #ff7a5e;
+  color: #ffd8cf; font-size: 11px; line-height: 1.5; word-break: break-word;
+}
+#errbox.show { display: block; }
+#errbox b { display: block; margin-bottom: 4px; letter-spacing: .08em; text-transform: uppercase; font-size: 10px; }
+
+@media (min-width: 900px) { #joyZone { display: none; } }

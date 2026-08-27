@@ -2,8 +2,19 @@
 
 A browser survival/siege game. Build by day, hold the night.
 
-Single HTML file, Three.js r128 from CDN, no build step, no external assets.
-Open `index.html` and play. Mobile first — it is meant for a phone.
+Native ES modules, Three.js r128 from CDN, no build step, no external assets.
+Mobile first — it is meant for a phone.
+
+## Playing it
+
+```
+npm install
+npm start          # http://localhost:8080
+```
+
+A server is needed rather than opening the file directly: browsers refuse to
+load ES modules over `file://`. Any static server will do; `npm start` is just
+the shortest one that sets the right MIME types.
 
 ## The loop
 
@@ -18,10 +29,23 @@ raiders come for you. Every seventh night is a big one.
 - Walls are chosen by the enemy, not just by you: every class weighs breaking
   through against walking around, in seconds.
 
+## Layout
+
+```
+index.html      markup only — the HUD, the panels, the canvas
+src/styles.css  every rule the HUD uses
+src/main.js     entry point: error reporting, then new Game()
+src/data/       tunables and catalogs — config, items, recipes, structures
+src/core/       grid, flow field, auto-tiling, small helpers
+src/world/      things with a mesh and an update — player, enemies, nodes
+src/systems/    build, crafting, day cycle, hordes, combat, economy
+src/ui/         panel, hotbar, input, camera, debug overlay
+src/game.js     wiring, the frame loop, save and load
+```
+
 ## Running the tests
 
 ```
-npm install
 npm test
 ```
 

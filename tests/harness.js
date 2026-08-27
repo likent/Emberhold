@@ -7,20 +7,12 @@ const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
+const { link } = require("./link.js");
+
 const ROOT = path.join(__dirname, "..");
 const THREE_CACHE = path.join(__dirname, ".three-r128.js");
 const THREE_URL =
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-
-/** The game file, whatever it is called today. */
-function gamePath() {
-  for (const name of ["emberhold.html", "index.html", "game.html"]) {
-    const p = path.join(ROOT, name);
-    // index.html may be the tiny Pages redirect rather than the game itself.
-    if (fs.existsSync(p) && fs.statSync(p).size > 50000) return p;
-  }
-  throw new Error("could not find the game html in " + ROOT);
-}
 
 /** Three comes from a CDN in the page; fetch it once and keep it on disk. */
 async function three() {
@@ -38,12 +30,9 @@ async function three() {
  *   plant a save before boot or inspect one after.
  */
 async function boot(opts = {}) {
-  const html = fs.readFileSync(gamePath(), "utf8");
-  const scripts = html.match(/<script>([\s\S]*?)<\/script>/g);
-  const game = scripts[scripts.length - 1].replace(/<\/?script>/g, "");
-  const page = html
-    .replace(/<script src[\s\S]*?<\/script>/, "")
-    .replace(/<script>[\s\S]*?<\/script>/, "");
+  const page = fs.readFileSync(path.join(ROOT, "index.html"), "utf8")
+    .replace(/<script[\s\S]*?<\/script>/g, "");
+  const game = link(path.join(ROOT, "src", "main.js"));
 
   const dom = new JSDOM(page, { pretendToBeVisual: true, runScripts: "outside-only" });
   const w = dom.window;
