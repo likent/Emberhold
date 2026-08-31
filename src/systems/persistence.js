@@ -77,11 +77,17 @@ export class Persistence {
       if (rec.orient !== undefined) b.meta.set(rec.i, { orient: rec.orient });
       b.create(cx, cy, def);
       g.hp[rec.i] = rec.hp;
-      if (rec.chest) b.outputAt && b.chests.set(rec.i, Object.assign(new Inventory(CONFIG.station.chestSlots), { slots: rec.chest }));
+      // Its own size, not the base chest's: an iron chest restored as a
+      // 24-slot one leaves everything above slot 24 visible but unreachable.
+      if (rec.chest) {
+        const inv = new Inventory(def.slots || CONFIG.station.chestSlots);
+        rec.chest.forEach((e, n) => { if (e) { if (n < inv.size) inv.slots[n] = e; else inv.putEntry(e); } });
+        b.chests.set(rec.i, inv);
+      }
       if (rec.tray) b.outputAt(rec.i).slots = rec.tray;
       if (rec.jobs) {
         const q = b.queueAt(rec.i);
-        q.jobs = rec.jobs.map(j => this._job(j));
+        q.jobs = rec.jobs.map(j => this._job(j)).filter(Boolean);
       }
     }
     b.placed.forEach((mesh, i) => b.refresh(i % g.w, (i / g.w) | 0));
@@ -96,7 +102,7 @@ export class Persistence {
     this.game.economy.inv.slots = s.inv.map(e => e || null);
     this.game.equip.worn.armor = s.armor || null;
     this.game.equip.hand = s.hand || 0;
-    this.game.handQueue.jobs = (s.handJobs || []).map(j => this._job(j));
+    this.game.handQueue.jobs = (s.handJobs || []).map(j => this._job(j)).filter(Boolean);
 
     this.game.core.cell = s.core.cell;
     this.game.core.carriedHp = s.core.carriedHp;
@@ -126,8 +132,11 @@ export class Persistence {
     return true;
   }
 
+  /** Null when the recipe no longer exists: falling back on RECIPES[0] turned
+   *  a stale job into charcoal rather than admitting it could not be read. */
   _job(rec) {
-    const recipe = RECIPES.find(r => r.out === rec.out) || RECIPES[0];
+    const recipe = RECIPES.find(r => r.out === rec.out);
+    if (!recipe) return null;
     return { recipe, left: rec.left, total: recipe.time, done: rec.left <= 0 };
   }
 
@@ -140,8 +149,10 @@ export class Persistence {
       return true;
     } catch (e) {
       // Private mode, a full quota, or a sandboxed page: keep it in memory so
-      // the run at least survives a restart within this session.
-      this._memorySave = this.snapshot();
+      // the run at least survives a restart within this session. It has to be
+      // copied - a snapshot holds the live inventory arrays, so keeping it as
+      // it comes would leave a "save" that changes as the run does.
+      this._memorySave = JSON.parse(JSON.stringify(this.snapshot()));
       if (!quiet) this.game.ui.toast("Saved in memory only - storage unavailable");
       return false;
     }

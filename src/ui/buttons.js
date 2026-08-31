@@ -52,6 +52,9 @@ function bindActionButton(game) {
 
   btn.addEventListener("pointerdown", e => {
     e.preventDefault(); e.stopPropagation();
+    // Without capture a thumb that slides off never delivers pointerup, and
+    // the run of walls being dragged out is left armed with no way to finish.
+    btn.setPointerCapture(e.pointerId);
     const item = game.equip.handItem();
     if (item && item.food) { game.player.eat(); return; }
     placing = !!(item && item.kind === "deployable");
@@ -79,7 +82,10 @@ function bindActionButton(game) {
     swing(false);
   };
   btn.addEventListener("pointerup", e => { e.preventDefault(); e.stopPropagation(); finish(); });
-  btn.addEventListener("pointercancel", () => { clear(); game.build.cancelLine(); lining = placing = false; swing(false); });
+  btn.addEventListener("pointercancel", () => {
+    clear(); btn.classList.remove("on");
+    game.build.cancelLine(); lining = placing = false; swing(false);
+  });
   btn.addEventListener("pointerleave", () => { if (!placing) swing(false); });
 }
 
@@ -90,6 +96,7 @@ function bindPlaceButton(game) {
   const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
   btn.addEventListener("pointerdown", e => {
     e.preventDefault(); e.stopPropagation();
+    btn.setPointerCapture(e.pointerId);      // see the action button: the release must land here
     dragging = false;
     timer = setTimeout(() => {
       dragging = game.build.beginLine();

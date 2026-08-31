@@ -50,6 +50,10 @@ export class FieldRunner {
                 targets.map(t => t.cx + "," + t.cy + "," + t.bias).join(";");
     if (field.sig === sig) return false;
     field.sig = sig;
+    // Nobody wrote this before, so the freshness check below it compared -1
+    // against a version that only ever grows: every frame looked stale and
+    // the rebuild interval never held anything back.
+    field.version = this.game.grid.version;
     const t0 = performance.now();
     field.compute(targets);
     this.stats.builds++;
@@ -99,10 +103,11 @@ export class FieldRunner {
   }
 
   /**
-   * The field targets the core only. The player used to be a second source,
-   * which meant a full rebuild every time they crossed a cell - a hitch every
-   * few frames in a fight. Chasing the player is now local steering inside
-   * each class's aggro range, so the field only changes when the world does.
+   * What the field aims at. With hunt mode on - or the core on someone's back
+   * - it is the player, and the field therefore changes every time they cross
+   * a cell; `CONFIG.path.rebuildInterval` is what keeps that affordable. With
+   * hunt off the target is the core and the field only moves when the world
+   * does, with chasing left to the local steering inside each aggro range.
    */
   _targets() {
     const g = this.game.grid, player = this.game.player, core = this.game.core;

@@ -254,6 +254,10 @@ export class Enemy extends Entity {
     if (!this.bar) this.bar = this.game.bars.create(0xe2564a, 0.85 + this.type.radius);
     if (this.hp <= 0 && !this.dead) {
       this.dead = true;
+      // Counted here rather than beside the toast below: hanging the tally off
+      // the "no drops" branch meant anything that dropped something - the boar,
+      // and any future raider with loot - was killed for free.
+      this.game.stats.kills++;
       if (this.type.drops) {
         const gained = {}, spilled = {};
         for (const id in this.type.drops) {
@@ -265,7 +269,7 @@ export class Enemy extends Entity {
         const a = Object.keys(gained).length ? "+" + costText(gained) : "";
         const b = Object.keys(spilled).length ? "dropped " + costText(spilled) + " - pack full" : "";
         this.game.ui.toast([a, b].filter(Boolean).join(", "));
-      } else this.game.stats.kills++;
+      }
       // No loot from corpses by design: resources come from the world only.
       this.game.fx.spawnChips(this.position.x, 0.9, this.position.z, 6, 0xb5563f);
     }

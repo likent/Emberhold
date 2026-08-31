@@ -104,6 +104,25 @@ export class Player extends Entity {
 
   get position() { return this.object.position; }
 
+  /**
+   * A new run starts with a new body. Restart used to set health and leave
+   * everything else, so a run that ended in starvation began the next one
+   * with an empty belly and immediately started losing health again.
+   */
+  reset() {
+    this.hp = CONFIG.player.maxHp;
+    this.hunger = CONFIG.hunger.max;
+    this.torchFuel = 0;
+    this.eatCd = 0;
+    this.attackCd = 0;
+    this.swingT = -1;
+    this.acting = false;
+    this.downed = false;
+    this.respawnT = 0;
+    this.armPivot.rotation.set(0, 0, 0);
+    this.object.visible = true;
+  }
+
   move(dirX, dirZ, dt) {
     if (this.downed) { this.moving = false; return; }
     const len = Math.hypot(dirX, dirZ);

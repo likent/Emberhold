@@ -74,6 +74,7 @@ export class ItemInfo {
     if (def.hp && !def.trap) {
       for (const id in CONFIG.enemyTypes) {
         const t = CONFIG.enemyTypes[id];
+        if (!t.dpsVsStructure) continue;      // a boar does not chew walls: hp/0 read as "Infinitys"
         stats.push(t.label + " breaks in " + (def.hp / t.dpsVsStructure).toFixed(1) + "s");
       }
     }

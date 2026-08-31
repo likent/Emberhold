@@ -50,25 +50,44 @@ export class PackSystem {
     for (const p of this.list) {
       if ((p.x - x) ** 2 + (p.z - z) ** 2 < 9) { pack = p; break; }
     }
-    if (!pack) {
-      const mesh = new THREE.Mesh(GEO.bagBody, MATS.hide);
-      mesh.position.set(x, 0.45, z);
-      mesh.castShadow = true;
-      this.game.scene.add(mesh);
-      pack = {
-        x, z, mesh, bob: Math.random() * 6, kind: kind || "drop",
-        inv: new Inventory(CONFIG.station.chestSlots)
-      };
-      pack.life = kind === "death" ? CONFIG.packs.deathLife : CONFIG.packs.dropLife;
-      this.list.push(pack);
-    }
+    if (!pack) pack = this._newPack(x, z, kind);
     // Anything added keeps the sack around for its full span again.
     if (kind === "death") { pack.kind = "death"; pack.life = CONFIG.packs.deathLife; }
     else pack.life = Math.max(pack.life, CONFIG.packs.dropLife);
-    for (const entry of entries) {
-      if (!pack.inv.putEntry(entry)) pack.inv.add(entry.id, entry.count);
+
+    // What the sack cannot hold goes into a fresh one alongside it. Dying next
+    // to a sack that was already full used to destroy the whole pack outright.
+    let over = this._fill(pack, entries);
+    for (let n = 1; over.length && n <= 8; n++) {
+      over = this._fill(this._newPack(x + n * 3.4, z, kind), over);
     }
+    if (over.length) this.game.ui.toast("Nowhere to put " + over.length + " stacks - lost");
     return pack;
+  }
+
+  _newPack(x, z, kind) {
+    const mesh = new THREE.Mesh(GEO.bagBody, MATS.hide);
+    mesh.position.set(x, 0.45, z);
+    mesh.castShadow = true;
+    this.game.scene.add(mesh);
+    const pack = {
+      x, z, mesh, bob: Math.random() * 6, kind: kind || "drop",
+      inv: new Inventory(CONFIG.station.chestSlots)
+    };
+    pack.life = kind === "death" ? CONFIG.packs.deathLife : CONFIG.packs.dropLife;
+    this.list.push(pack);
+    return pack;
+  }
+
+  /** Puts what fits into one sack and hands back the entries that did not. */
+  _fill(pack, entries) {
+    const over = [];
+    for (const entry of entries) {
+      if (pack.inv.putEntry(entry)) continue;
+      const left = pack.inv.add(entry.id, entry.count);
+      if (left > 0) { entry.count = left; over.push(entry); }
+    }
+    return over;
   }
 
   nearest() {

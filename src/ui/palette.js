@@ -111,7 +111,10 @@ export class Palette {
     document.getElementById("pickBtn").classList.toggle("on", on);
     if (on) this.refresh(); else this.closeVariants();
   }
+  /** Chips are keyed by category, so a structure id has to be resolved first. */
   setSelected(id) {
-    for (const key in this.chips) this.chips[key].classList.toggle("on", key === id);
+    const def = STRUCTURES[id];
+    const cat = def ? def.category || "other" : null;
+    for (const key in this.chips) this.chips[key].classList.toggle("on", key === cat);
   }
 }
