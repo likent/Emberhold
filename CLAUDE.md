@@ -46,12 +46,16 @@ server (`npm start`) is needed rather than opening the file.
 | `src/systems/core.js` | the core: spawn, lift, carry, set down, lose |
 | `src/systems/packs.js` | sacks on the ground — death drops, spilled harvests, rot |
 | `src/systems/persistence.js` | the save format, autosave, and booting from a corrupt one |
+| `src/systems/settings.js` | look, shadows, render quality; their own storage key, so wiping a run keeps them |
 | `src/systems/stations.js` | what is in reach: bench, fire, furnace, chest, and their buttons |
 | `src/systems/slots.js` | moving entries between backpack, chest, sack, armor, ground |
 | `src/systems/gear.js` | salvage and repair prices, both read off the recipe |
 | `src/systems/fx.js` | chips, collapses, bolts in flight, the swing arc |
 | `src/systems/wildlife.js` | the boars, and nothing else |
 | `src/ui/ui.js` | the HUD: bars, day card, toasts, overlay. All hand-rolled DOM |
+| `src/ui/menu.js` | the pause screen: the shell and the order of its sections, nothing else |
+| `src/ui/menu-rows.js` | the three shapes a section is built from: heading, row, one-of-N |
+| `src/ui/menu-settings.js` / `menu-save.js` / `menu-debug.js` | one section each. A new section is a file plus a name in `SECTIONS` |
 | `src/ui/cells.js` | the one widget it is all built from: draw, tap, hold, drag |
 | `src/ui/item-info.js` | the card a long press opens, for items and buildings alike |
 | `src/ui/panel.js` | the backpack: which tabs exist, the bag, the hotbar, chest and sack |
@@ -139,6 +143,11 @@ an empty belly, then 2.2 hp/s.
 Repair needs a hammer in hand: mallet 70 hp/s, iron 170, steel 290. Nothing
 else repairs anything.
 
+The pause screen freezes everything: `_loop` skips `_update` entirely, so the
+clock, hunger, the raiders and the autosave timer all stop together. `getDelta`
+stays outside that guard on purpose - it measures since its own last call, and
+moving it inside would deliver the whole pause as one step.
+
 ## Open threads
 
 - **Gates that open and close.** The one mechanic that would give the player a
@@ -153,11 +162,17 @@ else repairs anything.
   is `variantOf(base, { … })` in `structures.js`: write only the numbers that
   change, and the mesh and the behaviour come with it. Titanium above steel is
   wanted but should wait until steel has been played with.
-- **`Game` is down to ~300 lines**: the constructor, the frame loop, `restart`,
-  `gameOver`, and the test switches — sandbox, the cost heatmap, the clock
-  pause — which stay because they cut across every system at once. Everything
+- **`Game` is ~350 lines**: the constructor, the frame loop, `restart`,
+  `gameOver`, `setPaused`, and the test switches — sandbox, the cost heatmap,
+  the clock pause — which stay because they cut across every system at once.
+  Freezing the world is that same shape: it reaches into input, the player,
+  build state and the loop, so it lives here rather than in the menu. Everything
   else is a system taking the game. Do not split it further; what is left is
   the wiring the file exists for.
+- **Three flags mean three different things** and are easy to confuse:
+  `game.running` is "the run is over", `game.paused` is "the player is in the
+  menu" and `cycle.paused` is the sandbox clock freeze. Renaming the last one
+  is wanted, on its own and not folded into anything else.
 - **The interface is six files now**, none over 250 lines: `ui.js` is the HUD,
   `panel.js` the backpack, `craft-panel.js` everything being made, plus the
   cells, the info card and the palette. The rest of the game talks to

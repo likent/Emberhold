@@ -59,12 +59,6 @@ export class UI {
   }
   setInvulnerable(on) { this.hpFill.style.background = on ? "var(--accent)" : "var(--hp)"; }
 
-  setSandbox(on) {
-    document.getElementById("sandboxBtn").classList.toggle("on", on);
-    document.getElementById("waveBtn").classList.toggle("hidden", !on);
-    document.getElementById("hordeBtn").classList.toggle("hidden", !on);
-    document.getElementById("debugBtn").classList.toggle("hidden", !on);
-  }
   setCycle(day, night, t, paused) {
     this.waveNum.textContent = day;
     const icon = document.getElementById("phaseIcon");

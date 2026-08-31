@@ -54,18 +54,8 @@ export function renderStats(game) {
   row("Cost per rebuild", game.paths.stats.avg.toFixed(2) + " ms");
   row("Live classes", game.paths.liveClasses());
 
-  head("Save");
-  const saveRow = (label, value, fn) => {
-    const r = document.createElement("div");
-    r.className = "statRow";
-    r.innerHTML = '<span class="k">' + label + '</span><span class="v" style="color:var(--accent)">' + value + "</span>";
-    game.ui.cells.bind(r, fn, null);
-    list.appendChild(r);
-  };
-  saveRow("Progress", game.saves.has() ? "stored" : "not stored yet", null);
-  saveRow("Save now", "save", () => { game.saves.save(); game.panel.refresh(); });
-  saveRow("Start over", "wipe", () => { game.saves.wipe(); game.restart(); game.panel.toggle(); });
-
+  // Saving and starting over live on the pause screen now: this tab is what
+  // the run amounts to, not what can be done to it.
   head("This run");
   row("Day", game.cycle.day + (game.cycle.isNight ? " (night)" : ""));
   row("Kills", game.stats.kills);

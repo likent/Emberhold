@@ -1,11 +1,15 @@
 import { clamp } from "../core/util.js";
+import { CONFIG } from "../data/config.js";
 
 export class CameraRig {
   constructor(camera) {
     this.camera = camera;
     this.yaw = Math.PI;
     this.pitch = 0.62;
-    this.distance = 13;
+    this.distance = CONFIG.camera.distance;
+    // Written by the settings system; the rig itself knows nothing about it.
+    this.sens = 1;
+    this.invert = 1;
     this.target = new THREE.Vector3();
     this.shake = 0;
   }
@@ -13,8 +17,10 @@ export class CameraRig {
   kick(amount) { this.shake = Math.max(this.shake, amount); }
 
   rotate(dx, dy) {
-    this.yaw -= dx * 0.006;
-    this.pitch = clamp(this.pitch + dy * 0.004, 0.22, 1.25);
+    const c = CONFIG.camera;
+    this.yaw -= dx * c.yawRate * this.sens;
+    this.pitch = clamp(this.pitch + dy * c.pitchRate * this.sens * this.invert,
+                       c.minPitch, c.maxPitch);
   }
   update(dt, focus) {
     this.target.lerp(focus, clamp(10 * dt, 0, 1));

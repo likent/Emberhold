@@ -17,6 +17,7 @@ import { HealthBarSystem } from "./systems/healthbars.js";
 import { HordeSystem } from "./systems/hordes.js";
 import { PackSystem } from "./systems/packs.js";
 import { Persistence } from "./systems/persistence.js";
+import { Settings } from "./systems/settings.js";
 import { SlotMoves } from "./systems/slots.js";
 import { StationSystem } from "./systems/stations.js";
 import { Wildlife } from "./systems/wildlife.js";
@@ -24,6 +25,7 @@ import { bindButtons } from "./ui/buttons.js";
 import { CameraRig } from "./ui/camera.js";
 import { CostHeatmap } from "./ui/heatmap.js";
 import { InputSystem } from "./ui/input.js";
+import { Menu } from "./ui/menu.js";
 import { Palette } from "./ui/palette.js";
 import { Panel } from "./ui/panel.js";
 import { UI } from "./ui/ui.js";
@@ -90,6 +92,12 @@ export class Game {
     this.sandbox = CONFIG.sandbox.enabled;
     this.debug = false;
     this.running = true;
+    this.paused = false;
+
+    // After the switches above, because the menu paints their state, and
+    // before bindButtons, because it is what puts those rows in the document.
+    this.settings = new Settings(this);
+    this.menu = new Menu(this);
 
     buildGeometry();
     this.scenery = new Scenery(this);
@@ -105,14 +113,14 @@ export class Game {
     this.build.select("fence");
     bindButtons(this);
     this._resize();
+    this.settings.apply();      // after _resize: applying the quality calls it again
     addEventListener("resize", () => this._resize());
 
     this.equip.reset();
     this.economy.reset();
-    this.ui.setSandbox(this.sandbox);
+    this.menu.refresh();
     this.ui.setInvulnerable(this.sandbox);
     this.ui.setActionIcon(this.equip.handItem());
-    document.getElementById("huntBtn").classList.toggle("on", this.huntPlayer);
     this.palette.setBuildMode(false);
     this.ui.setHp(1);
     this.saveTimer = CONFIG.save.autoEvery;
@@ -139,7 +147,7 @@ export class Game {
   /** Flips who the raiders are actually walking towards. */
   toggleHunt() {
     this.huntPlayer = !this.huntPlayer;
-    document.getElementById("huntBtn").classList.toggle("on", this.huntPlayer);
+    this.menu.refresh();
     this.paths.invalidateAll();
     this.ui.toast(this.huntPlayer ? "Raiders hunt you" : "Raiders march on the core");
   }
@@ -154,7 +162,7 @@ export class Game {
     const on = !this.sandbox;
     this.sandbox = on;
     this.economy.setInfinite(on);
-    this.ui.setSandbox(on);
+    this.menu.refresh();
     this.ui.setInvulnerable(on);
     if (!on) {
       this.cycle.paused = false;
@@ -197,7 +205,7 @@ export class Game {
     }
     this.paths.shown = this.paths.fields[this.debugClass] || this.paths.fields.raider;
     this.heatmap.setVisible(this.debug);
-    document.getElementById("debugBtn").classList.toggle("on", this.debug);
+    this.menu.refresh();
     if (this.debug) {
       this.paths.shown.sig = "";
       this.paths.shown.stale = true;
@@ -205,6 +213,34 @@ export class Game {
       this.heatmap.refresh();
       this.ui.toast("Path costs: " + CONFIG.enemyTypes[this.debugClass].label);
     }
+  }
+
+  /**
+   * The world stops. This is neither `running`, which means the run is over,
+   * nor `cycle.paused`, which is only the sandbox clock freeze. Returns false
+   * when there is nothing to pause, so the menu knows not to open.
+   */
+  setPaused(on) {
+    if (on && !this.running) return false;
+    this.paused = on;
+    // Whatever was being held has to be let go of at both ends: a thumb left
+    // on the stick would keep walking on resume, and the look it banked in the
+    // meantime would arrive in one lump, because only sample() drains that.
+    this.input.releaseAll();
+    if (!on) return true;
+
+    this.player.acting = false;
+    // The action button keeps its own state in a closure; the classes are the
+    // only part of it reachable from out here.
+    document.getElementById("actionBtn").classList.remove("firing", "on");
+    this.build.cancelLine();
+    this.ui.cells.cancelDrag();          // the drag ghost outranks every panel
+    this.palette.closeVariants();
+    if (this.panel.isOpen()) this.panel.toggle();
+    // Pausing is exactly when a tab gets closed, and the autosave clock is one
+    // of the things that has just stopped.
+    this.saves.save(true);
+    return true;
   }
 
   spawnEnemy(x, z, type, opts) {
@@ -249,6 +285,7 @@ export class Game {
     this.ui.showOverlay(false);
     this.paths.invalidate();
     this.running = true;
+    this.paused = false;
   }
 
   _update(dt) {
@@ -293,9 +330,13 @@ export class Game {
 
   _loop() {
     requestAnimationFrame(this._loop);
+    // getDelta must stay out here: it measures since its own last call, so
+    // being called every frame - paused or not - is what stops a pause from
+    // arriving as one enormous step. Moving it inside the guard looks tidy
+    // and breaks exactly that.
     const dt = Math.min(this.clock.getDelta(), 0.05);
     try {
-      if (this.running) this._update(dt);
+      if (this.running && !this.paused) this._update(dt);
       this.renderer.render(this.scene, this.camera);
     } catch (err) {
       // One bad frame must not kill input handling for the whole session -
@@ -303,6 +344,7 @@ export class Game {
       // reads as a hang. Say what happened and offer the way out.
       reportError(err);
       this.running = false;
+      this.paused = false;
       try {
         this.ui.showOverlay(true, "Something broke",
           "The frame loop hit an error and stopped. Your last autosave is intact - start again to pick it up.");

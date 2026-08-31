@@ -63,10 +63,10 @@ html, body {
 #actionBtn.firing { background: rgba(226,86,74,.32); border-color: rgba(255,140,120,.7); }
 .ibtn.on { background: rgba(79,180,201,.26); border-color: rgba(120,215,235,.6); color: #eaf7fb; }
 .ibtn:active { transform: translateY(1px); }
-#utils {
+/* The corner the five debug buttons used to share; one way into the menu now. */
+#menuBtn {
   position: fixed; z-index: 12; right: 14px;
   top: calc(env(safe-area-inset-top) + 62px);
-  display: flex; gap: 8px;
 }
 /* Build and backpack are menus, not actions: they live away from the
    thumb that fights, on the opposite side of the screen. */
@@ -169,6 +169,45 @@ html, body {
 #overlay h1 { margin: 0; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
 #overlay p { margin: 0; color: var(--dim); font-size: 13px; max-width: 34ch; line-height: 1.6; }
 
+/* Above the backpack (25) so it always wins, below the item card and the error
+   box (30): a long-press card opened from here has to read, and an error has to
+   be visible whatever else is on screen. */
+#menu {
+  position: fixed; inset: 0; z-index: 26; display: none;
+  align-items: center; justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);
+  background: rgba(6, 10, 14, .72); backdrop-filter: blur(3px);
+}
+#menu.show { display: flex; }
+.menuCard {
+  width: min(94vw, 400px); max-height: 78vh;
+  display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
+  background: rgba(10, 15, 21, .96); border: 1px solid var(--stroke);
+}
+.menuTitle {
+  flex: 1; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dim);
+}
+/* The way out sits at the bottom, where the thumb already is: the close cross
+   is at the top of a tall screen, which is the furthest place from it. */
+.menuFoot {
+  flex: none; padding: 10px; border-top: 1px solid var(--stroke);
+  background: rgba(10, 15, 21, .98);
+}
+.menuFoot .btn { width: 100%; }
+#menuList, #menuList .section { display: flex; flex-direction: column; gap: 5px; }
+.headValue { float: right; color: var(--dim); letter-spacing: 0; }
+.statRow.tap { pointer-events: auto; }
+.statRow.tap .v { color: var(--accent); }
+.statRow.on { background: rgba(79,180,201,.2); border-color: rgba(120,215,235,.6); }
+.statRow.on .v { color: #eaf7fb; }
+.statRow.danger .v { color: var(--danger); }
+.invBar.tap { pointer-events: auto; }
+/* Choices are .btn.small, not .chip: a chip carries touch-action pan-x, which
+   would eat the panel's vertical scroll wherever one sat. */
+.choice { display: flex; gap: 6px; margin: 0 2px 4px; }
+.choice .btn { flex: 1; min-width: 0; }
+
 #invPanel {
   position: fixed; z-index: 25; left: 50%; transform: translateX(-50%);
   top: calc(env(safe-area-inset-top) + 62px);
@@ -202,7 +241,7 @@ html, body {
   color: var(--dim); border: 1px solid transparent; touch-action: pan-x;
 }
 .tab.on { color: var(--text); background: rgba(79,180,201,.2); border-color: rgba(120,215,235,.5); }
-#invClose {
+#invClose, #menuClose {
   flex: none; width: 32px; height: 32px; padding: 6px; margin-left: 2px;
   border-radius: 9px; color: var(--text); pointer-events: auto;
   background: rgba(255,255,255,.07); border: 1px solid var(--stroke);

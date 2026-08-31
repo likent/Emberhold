@@ -68,7 +68,7 @@ export class Cells {
       start = null;
     };
     el.addEventListener("pointerup", e => { e.preventDefault(); e.stopPropagation(); finish(e); });
-    el.addEventListener("pointercancel", e => { clear(); this._cancelDrag(); dragging = false; start = null; });
+    el.addEventListener("pointercancel", e => { clear(); this.cancelDrag(); dragging = false; start = null; });
   }
 
   _slotHasItem(slot) {
@@ -108,12 +108,13 @@ export class Cells {
   _endDrag(x, y) {
     const target = this._targetAt(x, y);
     const from = this.drag.from;
-    this._cancelDrag();
+    this.cancelDrag();
     if (!target) return;
     this.game.slots.move(from, target.dataset.slot);
   }
 
-  _cancelDrag() {
+  /** Public: the pause screen has to drop a drag that is still in the air. */
+  cancelDrag() {
     if (this.drag && this.drag.el) this.drag.el.classList.remove("dragSrc");
     document.querySelectorAll(".dropTarget").forEach(el => el.classList.remove("dropTarget"));
     this.ghost.classList.remove("show");

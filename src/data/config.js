@@ -12,6 +12,19 @@ export const CONFIG = {
     minHarvestGrowth: 0.45
   },
 
+  /* The camera's own numbers, so a settings screen has something to scale. */
+  camera: { yawRate: 0.006, pitchRate: 0.004, minPitch: 0.22, maxPitch: 1.25, distance: 13 },
+
+  /* What the player may choose about how the game looks and steers. Stored
+   * under its own key: wiping a run must not cost someone their settings. */
+  settings: {
+    key: "emberhold-settings-v1", v: 1,
+    defaults: { look: "normal", invertY: false, shadows: true, quality: "high", zoom: "normal" },
+    lookScale:    { low: 0.6, normal: 1, high: 1.6 },
+    pixelRatio:   { low: 1, normal: 1.5, high: 2 },
+    zoomDistance: { near: 10, normal: 13, far: 16 }
+  },
+
   /* Wandering hordes: they cross the map on their own business, ignore the
    * core entirely, smash whatever stands in their way and leave. */
   hordes: {

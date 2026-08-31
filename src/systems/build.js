@@ -118,6 +118,10 @@ export class BuildSystem {
    * Cells that are blocked or unaffordable are skipped, not aborted on. */
 
   beginLine() {
+    // The hold timer behind this is a setTimeout, and a pause does not freeze
+    // those: without the guard, pausing inside the hold starts a run of walls
+    // in a world that has stopped.
+    if (this.game.paused) return false;
     if (!this.active || this.game.core.carrying) return false;
     this.line = { cx: this.aim.cx, cy: this.aim.cy };
     this.lineKey = "";

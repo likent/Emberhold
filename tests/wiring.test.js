@@ -10,7 +10,7 @@ const { boot } = require("./harness");
 const BUTTONS = ["buildBtn", "debugBtn", "huntBtn", "sandboxBtn", "waveCard",
   "coreBtn", "pickBtn", "bagBtn", "benchBtn", "furnaceBtn", "packBtn", "takeAll",
   "cookBtn", "chestBtn", "storeAll", "invClose", "waveBtn", "hordeBtn",
-  "placeBtn", "actionBtn", "restart"];
+  "placeBtn", "actionBtn", "restart", "menuBtn", "menuClose", "menuResume"];
 
 const TABS = ["craft", "bench", "cook", "furnace", "stats", "chest", "pack"];
 
@@ -167,5 +167,72 @@ module.exports = {
     const chips = t.game.palette.chips;
     assert(chips.wall.classList.contains("on"), "the wall chip is lit");
     assert(!chips.station.classList.contains("on"), "and the station chip is not");
+  },
+
+  "the debug switches moved out of the HUD and into the menu": async assert => {
+    const t = await boot();
+    t.sim(4);
+    assert(t.$("utils") === null, "the HUD row is gone");
+    assert(!!t.$("menuBtn"), "and one button took its corner");
+    // They keep their ids, which is why nothing that reaches for them by id
+    // - the wiring list above, the keyboard - had to change.
+    for (const id of ["huntBtn", "sandboxBtn", "waveBtn", "hordeBtn", "debugBtn"]) {
+      const el = t.$(id);
+      assert(!!el && t.$("menu").contains(el), id + " lives in the menu now");
+    }
+    t.game.toggleSandbox();
+    assert(t.$("sandboxBtn").classList.contains("on"), "the sandbox row lights up");
+    assert(!t.$("waveBtn").classList.contains("hidden"), "and the sandbox-only rows appear");
+    t.game.toggleSandbox();
+    assert(t.$("waveBtn").classList.contains("hidden"), "and go away again");
+  },
+
+  "the pause menu opens, presses and closes": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.tap(t.$("menuBtn"));
+    assert(t.$("menu").classList.contains("show"), "the menu is showing");
+    assert(t.game.paused, "and the world is paused");
+
+    // The debug section starts collapsed, so a test that did not open it would
+    // be pressing rows no thumb could reach.
+    const head = Array.prototype.filter.call(
+      t.$("menuList").querySelectorAll(".invBar.tap"), el => /Debug/.test(el.textContent))[0];
+    assert(!!head, "the debug section has a heading to open");
+    t.tap(head);
+    assert(!t.$("debugBtn").closest(".section").classList.contains("hidden"),
+      "and it opens");
+
+    // Every row is rebuilt on each press, so the list has to be asked again
+    // between taps rather than held on to.
+    const tappable = () => Array.prototype.slice.call(
+      t.$("menuList").querySelectorAll(".statRow.tap:not(.danger), .choice .btn"));
+    const count = tappable().length;
+    assert(count > 10, "there is something in every section", String(count));
+    for (let i = 0; i < count; i++) {
+      const el = tappable()[i];
+      if (!el) continue;
+      const before = t.errors.length;
+      t.tap(el);
+      assert(t.errors.length === before, "row " + i + " presses cleanly", t.errors[before]);
+    }
+
+    t.tap(t.$("menuResume"));
+    assert(!t.$("menu").classList.contains("show"), "it closes");
+    assert(!t.game.paused, "and the world runs again");
+  },
+
+  "starting a new run from the menu takes two taps": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.menu.open();
+    const danger = () => t.$("menuList").querySelector(".statRow.danger");
+    t.game.cycle.day = 6;
+    t.tap(danger());
+    assert(t.game.cycle.day === 6, "one tap changes nothing");
+    t.tap(danger());
+    assert(t.game.cycle.day === 1, "the second one starts over", String(t.game.cycle.day));
+    assert(!t.game.paused, "and the pause is lifted with it");
+    assert(!t.errors.length, "no errors", t.errors[0]);
   }
 };

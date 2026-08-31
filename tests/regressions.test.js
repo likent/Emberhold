@@ -276,5 +276,83 @@ module.exports = {
     assert(passes > 0, "the field is kept warm at all");
     assert(passes <= 30, "and is not swept every frame",
       passes + " sweeps in 120 frames");
+  },
+
+  "a paused world does not move": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    t.game.spawnEnemy(6, 6, t.type("raider"), {});
+
+    // Counted rather than compared: 60 synchronous frames carry almost no
+    // wall-clock time, so a state comparison would pass whether the gate
+    // worked or not. sim() calls _update directly and ignores the pause -
+    // this has to drive the real loop.
+    let ticks = 0;
+    const real = t.game._update.bind(t.game);
+    t.game._update = dt => { ticks++; return real(dt); };
+
+    const day = t.game.cycle.t, hunger = t.game.player.hunger;
+    const at = t.game.enemies[0].position.x, timer = t.game.saveTimer;
+
+    t.game.menu.open();
+    for (let i = 0; i < 60; i++) t.game._loop();
+    assert(ticks === 0, "not one frame was counted while paused", String(ticks));
+    assert(t.game.cycle.t === day, "the clock did not move");
+    assert(t.game.player.hunger === hunger, "hunger did not drain");
+    assert(t.game.enemies[0].position.x === at, "the raider did not step");
+    assert(t.game.saveTimer === timer, "and the autosave clock stood still");
+
+    t.game.menu.close();
+    for (let i = 0; i < 10; i++) t.game._loop();
+    assert(ticks === 10, "and every frame counts again after", String(ticks));
+  },
+
+  "the pause lets go of whatever was being held": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.input.move.x = 1;
+    t.game.input.look.dx = 400;      // a banked look would arrive in one lump
+    t.game.player.acting = true;
+    t.game.menu.open();
+    assert(t.game.input.move.x === 0, "the stick is centred");
+    assert(t.game.input.look.dx === 0, "the look is drained");
+    assert(!t.game.player.acting, "and the swing is let go of");
+  },
+
+  "settings survive a reload": async assert => {
+    const store = {};
+    const first = await boot({ storage: store });
+    first.sim(2);
+    const sens = first.game.rig.sens;               // read before it is changed
+    first.game.settings.set("look", "high");
+    first.game.settings.set("shadows", false);
+
+    const second = await boot({ storage: store });
+    second.sim(2);
+    assert(second.game.settings.get("look") === "high", "the choice came back",
+      second.game.settings.get("look"));
+    assert(second.game.rig.sens > sens, "and was applied to the rig",
+      second.game.rig.sens + " vs " + sens);
+    assert(second.game.renderer.shadowMap.enabled === false,
+      "and the shadows are still off at boot");
+  },
+
+  "wiping the run keeps the settings": async assert => {
+    const store = {};
+    const t = await boot({ storage: store });
+    t.sim(2);
+    t.game.settings.set("quality", "low");
+    t.game.saves.wipe();
+    assert(!!store["emberhold-settings-v1"], "the settings key is still there",
+      Object.keys(store).join(", "));
+  },
+
+  "settings that will not parse do not stop the boot": async assert => {
+    const t = await boot({ storage: { "emberhold-settings-v1": "{not json" } });
+    t.sim(20);
+    assert(!!t.game, "the game booted anyway");
+    assert(t.game.settings.get("shadows") === true, "on the defaults");
+    assert(!t.errors.length, "and runs clean", t.errors[0]);
   }
 };

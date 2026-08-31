@@ -20,13 +20,7 @@
   </div>
 </div>
 
-<div id="utils">
-  <div class="ibtn sm" id="huntBtn" data-icon="target" title="Raiders hunt the player"></div>
-  <div class="ibtn sm" id="sandboxBtn" data-icon="infinity" title="Sandbox"></div>
-  <div class="ibtn sm hidden" id="waveBtn" data-icon="forward" title="Raid now"></div>
-  <div class="ibtn sm hidden" id="hordeBtn" data-icon="skull" title="Send a wandering band"></div>
-  <div class="ibtn sm hidden" id="debugBtn" data-icon="route" title="Path costs"></div>
-</div>
+<div class="ibtn sm" id="menuBtn" data-icon="sliders" title="Pause and settings"></div>
 
 <div id="joyZone">
   <div id="joyBase"></div>
@@ -124,6 +118,17 @@
 
 <div id="toast"></div>
 <div id="errbox"><b>Runtime error</b><span id="errmsg"></span></div>
+
+<div id="menu">
+  <div class="menuCard">
+    <div class="panelHead">
+      <span class="menuTitle">Paused</span>
+      <span id="menuClose" class="ic" data-icon="close"></span>
+    </div>
+    <div class="panelBody"><div id="menuList"></div></div>
+    <div class="menuFoot"><div class="btn" id="menuResume">Resume</div></div>
+  </div>
+</div>
 
 <div id="overlay">
   <h1>Overrun</h1>

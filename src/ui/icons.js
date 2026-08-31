@@ -47,6 +47,7 @@ const ICONS = {
   snare:    '<circle cx="12" cy="13.6" r="5.6"/><path d="M6.8 10.4l10.4 6.4M17.2 10.4L6.8 16.8"/><path d="M12 8V4"/>',
   shield:   '<path d="M12 3.4l7 2.6v5.4c0 4.2-3 7.4-7 9.2-4-1.8-7-5-7-9.2V6z"/>',
   plate:    '<path d="M12 3.4l7 2.6v5.4c0 4.2-3 7.4-7 9.2-4-1.8-7-5-7-9.2V6z"/><path d="M12 3.6v17"/>',
+  sliders:  '<path d="M4 7h9M17.5 7H20M4 12h3M11 12h9M4 17h9M17.5 17H20"/><circle cx="15" cy="7" r="2.1"/><circle cx="9" cy="12" r="2.1"/><circle cx="15" cy="17" r="2.1"/>',
   target:   '<circle cx="12" cy="12" r="7.6"/><circle cx="12" cy="12" r="2.6"/><path d="M12 1.8v3.2M12 19v3.2M1.8 12H5M19 12h3.2"/>',
   route:    '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18h4.4A3.4 3.4 0 0 0 16 14.6v-.4a3.4 3.4 0 0 0-3.4-3.4H9.4A3.4 3.4 0 0 1 6 7.4V6"/>'
 };

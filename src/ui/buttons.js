@@ -12,10 +12,13 @@ export function bindButtons(game) {
     });
   };
   tap("buildBtn", () => game.toggleBuild());
-  tap("debugBtn", () => game.toggleDebug());
-  tap("huntBtn", () => game.toggleHunt());
-  tap("sandboxBtn", () => game.toggleSandbox());
   tap("waveCard", () => game.toggleWavePause());
+  // The five debug switches are bound where they now live, in menu-debug.js:
+  // tap() fires on pointerdown, and inside a scrolling panel that would mean a
+  // scroll begun on a row toggles it.
+  tap("menuBtn", () => game.menu.toggle());
+  tap("menuClose", () => game.menu.close());
+  tap("menuResume", () => game.menu.close());
   tap("coreBtn", () => (game.core.carrying ? game.core.setDown() : game.core.lift()));
   tap("pickBtn", () => game.palette.toggle());
   bindPlaceButton(game);
@@ -35,8 +38,6 @@ export function bindButtons(game) {
       game.panel.showTab(el.dataset.tab);
     });
   });
-  tap("waveBtn", () => game.cycle.spawnRaid());
-  tap("hordeBtn", () => game.hordes.spawnHorde());
   tap("restart", () => game.restart());
 }
 

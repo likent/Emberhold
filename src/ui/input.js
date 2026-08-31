@@ -98,8 +98,26 @@ export class InputSystem {
     this.game.build.placeAtAim();
   }
 
+  /**
+   * Drops every pointer the input system is holding. The pause screen calls
+   * this at both ends: a thumb still on the stick would keep the player
+   * walking on resume, and the look it banked would land in one lump.
+   */
+  releaseAll() {
+    this.move.x = 0; this.move.y = 0;
+    this.look.dx = 0; this.look.dy = 0;
+    this.joyPointer = null;
+    this.lookPointer = null;
+    this.tapCandidate = null;
+    this.zone.classList.remove("active");
+  }
+
   _bindKeys() {
     addEventListener("keydown", e => {
+      if (e.code === "Escape") { e.preventDefault(); this.game.menu.toggle(); return; }
+      // Nothing else reaches a frozen world: KeyF would arm a swing and KeyN
+      // would spawn a raid into it.
+      if (this.game.paused) return;
       this.keys.add(e.code);
       if (e.code === "KeyB") this.game.toggleBuild();
       if ((e.code === "Space" || e.code === "KeyE") && !e.repeat) this._placeHeld = false;
@@ -129,12 +147,15 @@ export class InputSystem {
     });
     addEventListener("keyup", e => {
       this.keys.delete(e.code);
+      if (e.code === "KeyF") this.game.player.acting = false;
+      // A key held when the menu opened is released inside the pause; letting
+      // that through would finish a run of walls in a world that has stopped.
+      if (this.game.paused) { this._placeHeld = false; return; }
       if (e.code === "Space" || e.code === "KeyE") {
         if (this._placeHeld) this.game.build.commitLine();
         else this.game.build.placeAtAim();
         this._placeHeld = false;
       }
-      if (e.code === "KeyF") this.game.player.acting = false;
     });
   }
 
