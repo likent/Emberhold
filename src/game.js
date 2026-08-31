@@ -220,7 +220,7 @@ export class Game {
     const s = this.stats;
     const tally = Object.keys(s.gathered).map(k => s.gathered[k] + " " + k).join(", ");
     this.ui.showOverlay(true, title,
-      "Survived " + this.cycle.day + " days. " + s.kills + " raiders killed, " +
+      "Survived " + this.cycle.day + " days. " + s.kills + " killed, " +
       s.built + " things built, downed " + s.deaths + " times." +
       (tally ? " Gathered " + tally + "." : ""));
   }
@@ -241,9 +241,7 @@ export class Game {
     this.equip.reset();
     this.economy.reset();
     this.core.reset();
-    this.player.hp = CONFIG.player.maxHp;
-    this.player.downed = false;
-    this.player.object.visible = true;
+    this.player.reset();
     const spot = this.core.position();
     this.player.position.set(spot.x, 0, spot.z + CONFIG.grid.cell * 2);
     this.ui.setHp(1);
@@ -300,9 +298,15 @@ export class Game {
       if (this.running) this._update(dt);
       this.renderer.render(this.scene, this.camera);
     } catch (err) {
-      // One bad frame must not kill input handling for the whole session.
+      // One bad frame must not kill input handling for the whole session -
+      // but it stops the simulation, and a frozen world with no explanation
+      // reads as a hang. Say what happened and offer the way out.
       reportError(err);
       this.running = false;
+      try {
+        this.ui.showOverlay(true, "Something broke",
+          "The frame loop hit an error and stopped. Your last autosave is intact - start again to pick it up.");
+      } catch (e) { /* the overlay is the last thing left; never let it throw */ }
     }
   }
 }

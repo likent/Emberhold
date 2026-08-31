@@ -125,7 +125,7 @@ for (const id in DEPLOYABLES) {
 }
 
 export const ITEM_DESC = {
-  __wear: "Gear wears out with use and cannot be repaired - craft a fresh one.",
+  __wear: "Gear wears out with use. A reinforced bench will mend it; anywhere else, craft a fresh one.",
   berries: "A quick handful. Keeps the edge off, no more.",
   raw_meat: "Edible at a pinch. Worth far more once it has seen a fire.",
   cooked_meat: "A proper meal. Cook it on a campfire.",
@@ -142,7 +142,7 @@ export const ITEM_DESC = {
   seed: "Shaken out of a felled tree. Plant it and a new one grows in about a minute.",
   quarry: "A shelf of workable stone. Endless, but each load takes a while to cut free.",
   workbench2: "Anvil and steel vices. Nothing made of steel can be worked without one.",
-  iron_wall: "Nine hundred hit points. Brutes need fifteen seconds a panel.",
+  iron_wall: "Two thousand two hundred hit points. Brutes need the better part of a minute a panel.",
   steel_wall: "Twice the iron again. Little short of a cliff face.",
   iron_gate: "A gate you can actually rely on.",
   mine: "An exposed seam. It never runs dry, but a haul takes time to work loose.",

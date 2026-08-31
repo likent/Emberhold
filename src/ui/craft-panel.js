@@ -118,31 +118,41 @@ export class CraftPanel {
 
   _recipes(list, recipes, eco, eq) {
     list.innerHTML = "";
-    let group = null;
+    // Gathered into groups first rather than headed as the list is walked:
+    // the deployable recipes are appended to the catalog after everything
+    // else, so the rows do not arrive in group order and "Deployables" was
+    // headed twice at the bench.
+    const order = [], byGroup = new Map();
     for (const recipe of recipes) {
-      if (recipe.group !== group) {
-        group = recipe.group;
-        const head = document.createElement("div");
-        head.className = "invBar";
-        head.textContent = group;
-        list.appendChild(head);
-      }
-      const def = ITEMS[recipe.out];
-      const row = document.createElement("div");
-      const affordable = eco.canAfford(recipe.cost);
-      const worn = def.slot && eq.worn[def.slot] && eq.worn[def.slot].id === def.id;
-      row.className = "recipe" + (affordable ? "" : " poor") + (worn ? " worn" : "");
-      row.innerHTML =
-        '<span class="glyph" data-icon="' + def.icon + '" style="color:' + def.tint + '"></span>' +
-        "<span style=\"flex:1\">" + def.label + (recipe.count ? " x" + recipe.count : "") +
-        '<span class="cost"> - ' + costText(recipe.cost) + " - " + recipe.time + "s</span></span>" +
-        "<span>" + this.card.summary(def) + "</span>";
-      paintIcons(row);
-      this.cells.bind(row,
-        () => { if (this.game.economy.craft(recipe)) this.game.panel.refresh(); },
-        () => this.card.show(def));
-      list.appendChild(row);
+      if (!byGroup.has(recipe.group)) { byGroup.set(recipe.group, []); order.push(recipe.group); }
+      byGroup.get(recipe.group).push(recipe);
     }
+    for (const group of order) {
+      const head = document.createElement("div");
+      head.className = "invBar";
+      head.textContent = group;
+      list.appendChild(head);
+      for (const recipe of byGroup.get(group)) this._recipeRow(list, recipe, eco, eq);
+    }
+  }
+
+  /** One recipe: what it makes, what it costs, what it will be good at. */
+  _recipeRow(list, recipe, eco, eq) {
+    const def = ITEMS[recipe.out];
+    const row = document.createElement("div");
+    const affordable = eco.canAfford(recipe.cost);
+    const worn = def.slot && eq.worn[def.slot] && eq.worn[def.slot].id === def.id;
+    row.className = "recipe" + (affordable ? "" : " poor") + (worn ? " worn" : "");
+    row.innerHTML =
+      '<span class="glyph" data-icon="' + def.icon + '" style="color:' + def.tint + '"></span>' +
+      "<span style=\"flex:1\">" + def.label + (recipe.count ? " x" + recipe.count : "") +
+      '<span class="cost"> - ' + costText(recipe.cost) + " - " + recipe.time + "s</span></span>" +
+      "<span>" + this.card.summary(def) + "</span>";
+    paintIcons(row);
+    this.cells.bind(row,
+      () => { if (this.game.economy.craft(recipe)) this.game.panel.refresh(); },
+      () => this.card.show(def));
+    list.appendChild(row);
   }
 
   /**

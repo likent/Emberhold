@@ -136,5 +136,145 @@ module.exports = {
     assert(t.game.packs.list.length >= 1, "a sack was left on the ground");
     assert(t.game.packs.list.some(p => p.inv.slots.some(s => s && s.id === "wood")),
       "the wood is in the sack");
+  },
+
+  "a full sack does not swallow what you died holding": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    const p = t.game.player.position;
+    // A sack at your feet with every slot taken: the death drop joins whatever
+    // is lying within three metres, and used to be discarded when it would not
+    // fit rather than starting a second sack.
+    const full = t.game.packs.dropItemsAt(p.x, p.z, []);
+    full.inv.slots.forEach((s, i) => { full.inv.slots[i] = { id: "stone", count: 99 }; });
+    t.game.economy.inv.clear();
+    t.game.economy.inv.slots[5] = { id: "iron_blade", count: 1, dur: 460 };
+
+    t.game.player.takeDamage(9999);
+    t.sim(4);
+
+    let blade = null;
+    for (const pack of t.game.packs.list) {
+      for (const s of pack.inv.slots) if (s && s.id === "iron_blade") blade = s;
+    }
+    assert(!!blade, "the blade is on the ground somewhere");
+    assert(blade && blade.dur === 460, "with its condition intact", blade && String(blade.dur));
+  },
+
+  "armour dropped on a taken slot stays on your back": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    const { cx, cy } = t.freeCell(10, 10);
+    const cell = t.place("chest", cx, cy);
+    t.game.player.position.set(t.grid.centerX(cx), 0, t.grid.centerZ(cy) + 2);
+    t.sim(2);
+    t.game.stations.openChestCell = cell;
+    const chest = t.game.build.chests.get(cell);
+    chest.slots[0] = { id: "wood_guard", count: 1, dur: 160 };
+    t.game.equip.worn.armor = { id: "iron_mail", count: 1, dur: 600 };
+
+    // A refused move must refuse before anything is unequipped.
+    t.game.slots.move("armor", "chest:0");
+    const worn = t.game.equip.worn.armor;
+    assert(worn && worn.id === "iron_mail", "the mail is still worn", JSON.stringify(worn));
+    assert(chest.slots[0] && chest.slots[0].id === "wood_guard", "and the chest is untouched");
+
+    // An empty backpack slot is a legal target, and keeps the condition.
+    t.game.economy.inv.slots[6] = null;
+    t.game.slots.move("armor", "6");
+    const moved = t.game.economy.inv.slots[6];
+    assert(moved && moved.id === "iron_mail" && moved.dur === 600,
+      "and it moves into the bag whole", JSON.stringify(moved));
+  },
+
+  "an iron chest keeps every slot it has through a save": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    const { cx, cy } = t.freeCell(12, 12);
+    const cell = t.place("iron_chest", cx, cy);
+    const chest = t.game.build.chests.get(cell);
+    assert(chest.size === 48, "an iron chest is built with its own 48 slots",
+      String(chest.size));
+    chest.slots[40] = { id: "wood", count: 7 };
+
+    t.game.saves.save(true);
+    t.game.saves.load();
+
+    const back = t.game.build.chests.get(cell);
+    assert(back && back.size === 48, "and still has them after a reload",
+      back && String(back.size));
+    // Restored at the base chest's size, the far slots stayed visible and
+    // countable while every method that walks by size ignored them.
+    assert(back && back.remove("wood", 7) === 7, "with the far slots still reachable");
+  },
+
+  "the memory-only save is a snapshot, not a view of the run": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.economy.inv.clear();
+    t.game.economy.inv.add("wood", 40);
+
+    const store = t.w.localStorage, real = store.setItem;
+    store.setItem = () => { throw new Error("storage unavailable"); };
+    t.game.saves.save(true);
+    store.setItem = real;
+
+    t.game.economy.inv.remove("wood", 40);
+    const saved = t.game.saves._memorySave.inv.filter(Boolean);
+    assert(saved.some(e => e.id === "wood" && e.count === 40),
+      "the wood is still in the save it was taken from", JSON.stringify(saved));
+  },
+
+  "a new run starts on a full belly": async assert => {
+    const t = await boot();
+    const full = t.game.player.hunger;      // before a frame has drained any
+    t.sim(4);
+    t.game.player.hunger = 2;
+    t.game.player.torchFuel = 30;
+    t.game.restart();
+    t.sim(2);
+    assert(t.game.player.hunger > full * 0.99, "hunger is back to full",
+      t.game.player.hunger + " / " + full);
+    assert(t.game.player.torchFuel === 0, "and no torch is still burning",
+      String(t.game.player.torchFuel));
+  },
+
+  "a kill counts whether or not it dropped anything": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    const before = t.game.stats.kills;
+    const boar = t.game.spawnEnemy(0, 0, t.type("critter"), { mode: "critter", route: [], lifetime: 99 });
+    boar.takeDamage(9999);
+    const raider = t.game.spawnEnemy(4, 0, t.type("raider"), {});
+    raider.takeDamage(9999);
+    assert(t.game.stats.kills === before + 2, "both are counted",
+      String(t.game.stats.kills - before));
+  },
+
+  "the flow field honours its rebuild interval": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    t.game.spawnEnemy(6, 6, t.type("brute"), {});
+    t.game.spawnEnemy(8, 6, t.type("runner"), {});
+    let passes = 0;
+    for (const id in t.game.paths.fields) {
+      const field = t.game.paths.fields[id];
+      const real = field.compute.bind(field);
+      field.compute = targets => { passes++; return real(targets); };
+    }
+    // Two seconds of walking at 60fps with three classes warm. The schedule
+    // allows one class per frame and one sweep per rebuildInterval; when the
+    // freshness check was comparing a version nobody wrote, every single
+    // frame looked stale and a sweep ran on all of them.
+    for (let i = 0; i < 120; i++) { t.game.input.move.x = 1; t.game._update(1 / 60); }
+    t.game.input.move.x = 0;
+    assert(passes > 0, "the field is kept warm at all");
+    assert(passes <= 30, "and is not swept every frame",
+      passes + " sweeps in 120 frames");
   }
 };

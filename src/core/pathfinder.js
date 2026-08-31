@@ -17,7 +17,7 @@ export class Pathfinder {
     this.heap = new MinHeap(n);
     this.sig = "";              // targets + grid version this field was built for
     this.maxDist = 1;
-    this.version = -1;
+    this.version = -1;          // grid version of the last pass; -1 = never built
   }
 
   /**

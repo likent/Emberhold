@@ -14,11 +14,20 @@ const THREE_CACHE = path.join(__dirname, ".three-r128.js");
 const THREE_URL =
   "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
 
-/** Three comes from a CDN in the page; fetch it once and keep it on disk. */
+/**
+ * Three comes from a CDN in the page; fetch it once and keep it on disk. An
+ * installed copy is preferred over the network, so the suite runs offline and
+ * behind a proxy - the CDN being unreachable used to fail every test at once.
+ */
 async function three() {
   if (fs.existsSync(THREE_CACHE)) return fs.readFileSync(THREE_CACHE, "utf8");
+  const local = path.join(ROOT, "node_modules", "three", "build", "three.min.js");
+  if (fs.existsSync(local)) return fs.readFileSync(local, "utf8");
   const res = await fetch(THREE_URL);
-  if (!res.ok) throw new Error("could not fetch three.js: " + res.status);
+  if (!res.ok) {
+    throw new Error("could not fetch three.js: " + res.status +
+      " - install it locally with: npm i -D three@0.128.0");
+  }
   const src = await res.text();
   fs.writeFileSync(THREE_CACHE, src);
   return src;

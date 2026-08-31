@@ -469,7 +469,7 @@ export class BuildSystem {
         if (perHp[k] > 0) amount = Math.min(amount, affordable / perHp[k]);
       }
       if (amount <= 0.001) {
-        this._warnRepair(perHp);
+        this._warnRepair();
         return false;
       }
       for (const k in perHp) {
@@ -487,7 +487,7 @@ export class BuildSystem {
     return true;
   }
 
-  _warnRepair(perHp) {
+  _warnRepair() {
     if (this._repairWarn > 0) return;
     this._repairWarn = 2.5;
     this.game.ui.toast("Out of materials to repair");
@@ -609,6 +609,9 @@ export class BuildSystem {
 
   reset() {
     const g = this.game.grid;
+    this.cancelLine();
+    if (this.ghost) { this.game.scene.remove(this.ghost); this.ghost = null; }
+    this.repairDebt = { wood: 0, stone: 0 };
     this.placed.forEach((mesh, i) => {
       this.game.scene.remove(mesh);
       g.clearCell(i % g.w, (i / g.w) | 0);

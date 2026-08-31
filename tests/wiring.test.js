@@ -125,5 +125,47 @@ module.exports = {
     assert(t.game.gear.salvage("3"), "broken down");
     assert(!t.game.economy.inv.slots[3], "the slot is empty afterwards");
     assert(!t.errors.length, "no errors", t.errors[0]);
+  },
+
+  "a wall's card quotes only what can actually break it": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.build.select("stone_wall");
+    t.game.ui.card.structure(t.game.build.selected);
+    const chips = t.$("modalStats").textContent;
+    assert(chips.indexOf("Raider breaks in") >= 0, "the raider is quoted a time", chips);
+    // A boar has no dps against structures, and hp/0 read as "Infinitys".
+    assert(chips.indexOf("Infinity") < 0, "and nothing that cannot chew is", chips);
+  },
+
+  "a recipe list heads each group once": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.clearWorld();
+    t.game.economy.add("wood", 400);
+    t.game.economy.add("stone", 400);
+    const g = t.grid, p = t.game.player.position;
+    t.place("workbench", g.cellX(p.x) + 1, g.cellY(p.z));
+    t.sim(4);
+    t.game.panel.toggle();
+    t.game.stations.openBench();
+    // Deployable recipes are appended to the catalog after the rest, so the
+    // rows do not arrive in group order.
+    const heads = Array.prototype.map.call(
+      t.$("benchList").querySelectorAll(".invBar"), el => el.textContent);
+    assert(heads.length > 0, "the bench lists something at all");
+    assert(heads.length === new Set(heads).size, "no group is headed twice",
+      heads.join(" | "));
+  },
+
+  "the palette chip lights up for whatever is selected": async assert => {
+    const t = await boot();
+    t.sim(4);
+    t.game.build.setActive(true);
+    // Chips are keyed by category; select() hands them a structure id.
+    t.game.build.select("iron_wall");
+    const chips = t.game.palette.chips;
+    assert(chips.wall.classList.contains("on"), "the wall chip is lit");
+    assert(!chips.station.classList.contains("on"), "and the station chip is not");
   }
 };

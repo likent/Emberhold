@@ -68,7 +68,7 @@ export function renderStats(game) {
 
   head("This run");
   row("Day", game.cycle.day + (game.cycle.isNight ? " (night)" : ""));
-  row("Raiders killed", game.stats.kills);
+  row("Kills", game.stats.kills);
   row("Structures placed", game.stats.built);
   row("Trees planted", game.stats.planted);
   row("Times downed", game.stats.deaths);

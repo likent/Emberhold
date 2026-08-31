@@ -173,6 +173,11 @@ calling internals, because that is where the bugs were: a ghost that would not
 clear, a repair list wiped by the recipe list drawn after it, durability reset
 by moving an item into a chest.
 
+Three itself comes from the CDN once and is cached in `tests/.three-r128.js`;
+failing that the harness falls back to the copy in `node_modules`, which is why
+`three` is a dev dependency. The suite therefore runs offline and behind a
+proxy - the CDN being unreachable used to fail every test at once.
+
 jsdom cannot import ES modules, so `tests/link.js` walks the import graph from
 `src/main.js` and concatenates it into one classic script. It is forty lines
 and understands only the dialect above; that is deliberate, so a stray default

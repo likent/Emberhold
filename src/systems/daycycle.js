@@ -87,16 +87,19 @@ export class DayCycle {
     const baseX = side === 0 ? 1 : side === 1 ? g.w - 2 : Math.floor(Math.random() * g.w);
     const baseY = side === 2 ? 1 : side === 3 ? g.h - 2 : Math.floor(Math.random() * g.h);
     let spawned = 0;
+    // Only what this raid put on the map: counting every body alive folded
+    // wandering bands and grazing boars into the announcement.
+    const seen = {};
     for (let n = 0; n < count * 5 && spawned < count; n++) {
       if (this.game.enemies.length >= CONFIG.enemy.maxAlive) break;
       const cx = clamp(baseX + Math.round((Math.random() - 0.5) * c.spawnSpread), 0, g.w - 1);
       const cy = clamp(baseY + Math.round((Math.random() - 0.5) * c.spawnSpread), 0, g.h - 1);
       if (g.blocksEnemy(g.idx(cx, cy))) continue;
-      this.game.spawnEnemy(g.centerX(cx), g.centerZ(cy), big ? this._rollBig() : this._rollType());
+      const type = big ? this._rollBig() : this._rollType();
+      this.game.spawnEnemy(g.centerX(cx), g.centerZ(cy), type);
+      seen[type.label] = (seen[type.label] || 0) + 1;
       spawned++;
     }
-    const seen = {};
-    for (const e of this.game.enemies) seen[e.type.label] = (seen[e.type.label] || 0) + 1;
     this.game.ui.toast((big ? "BLOOD RAID - night " : "Raid - night ") + this.day + ": " +
       Object.keys(seen).map(k => seen[k] + " " + k).join(", "));
     this.game.rig.kick(big ? 0.8 : 0.4);

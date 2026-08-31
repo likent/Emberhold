@@ -141,6 +141,10 @@ export class ResourceSystem {
       if (p && Math.hypot(x - p.position.x, z - p.position.z) < 6) continue;
       if (!p && Math.hypot(x, z) < 8) continue;
       this.nodes.push(new ResourceNode(this.game, def, cx, cy, growth));
+      // A boulder is a blocker: dropping one changes the routes, exactly as
+      // planting by hand does. Only the freshness check in fields.js was
+      // catching this, and only because it happened to fire every frame.
+      this.game.paths.invalidate();
       return true;
     }
     return false;

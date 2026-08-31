@@ -41,9 +41,14 @@ export class SlotMoves {
       const entry = eq.worn.armor;
       if (!entry || !dst) return;
       const other = dst.inv.slots[dst.index];
-      if (other && ITEMS[other.id].slot !== "armor") { this.game.ui.toast("That slot is taken"); return; }
-      eq.worn.armor = other && dst.inv === this.game.economy.inv ? other : null;
-      if (other && dst.inv !== this.game.economy.inv) { this.game.ui.toast("That slot is taken"); return; }
+      // Only the backpack can hand a piece back in exchange. Every other
+      // target must be empty, and that has to be settled before anything
+      // moves: clearing the body first and bailing out afterwards lost it.
+      if (other && (dst.inv !== this.game.economy.inv || ITEMS[other.id].slot !== "armor")) {
+        this.game.ui.toast("That slot is taken");
+        return;
+      }
+      eq.worn.armor = other || null;
       dst.inv.slots[dst.index] = entry;
       this.game.equip.changed();
       return;
